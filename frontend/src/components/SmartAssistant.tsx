@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { eventBus, EVENTS } from '../services/events';
 import type { Product } from '../services/api';
 import { productApi } from '../services/api';
+import { OutfitEngine } from '../services/outfitEngine';
+import OutfitRecommendationComponent from './OutfitRecommendation';
 
 interface Message {
     id: number;

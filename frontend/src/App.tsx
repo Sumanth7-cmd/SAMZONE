@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import SmartAssistant from './components/SmartAssistant';
+import SmartAssistantNew from './components/SmartAssistantNew';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Loader } from 'lucide-react';
 
@@ -47,7 +47,7 @@ function App() {
             </ErrorBoundary>
           </main>
           <Footer />
-          <SmartAssistant />
+          <SmartAssistantNew />
         </div>
       </Router>
     </ErrorBoundary>

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { productApi } from '../services/api';
 import type { Product } from '../services/api';
-import { ShoppingCart, ArrowLeft, Star, Eye, Heart, Share2 } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Star, Eye, Heart, Share2, Sparkles } from 'lucide-react';
+import { eventBus, EVENTS } from '../services/events';
 
 const ProductDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -284,28 +285,22 @@ const ProductDetails: React.FC = () => {
                                     <div className="bg-gray-50 p-4 rounded-lg">
                                         <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans">
                                             {product.specifications}
-                                        </pre>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Actions */}
-                            <div className="mt-auto space-y-4">
                                 <button
-                                    onClick={handleAddToCart}
-                                    disabled={product.stock === 0}
-                                    className="w-full flex items-center justify-center px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                    key={index}
+                                    onClick={() => setSelectedImage(index)}
+                                    className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                                        selectedImage === index 
+                                            ? 'border-indigo-600' 
+                                            : 'border-gray-200 hover:border-gray-300'
+                                    }`}
                                 >
-                                    <ShoppingCart className="mr-2 h-5 w-5" />
-                                    Add to Cart
+                                    <img
+                                        src={image}
+                                        alt={`${product.name} ${index + 1}`}
+                                        className="w-full h-full object-cover object-center"
+                                    />
                                 </button>
-                                
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Link
-                                        to={`/try-on?productId=${product.id}`}
-                                        className="flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
-                                    >
-                                        <Eye className="mr-2 h-5 w-5" />
+                            ))}
                                         Try On
                                     </Link>
                                     <button className="flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
