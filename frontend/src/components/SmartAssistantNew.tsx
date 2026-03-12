@@ -5,6 +5,7 @@ import { eventBus, EVENTS } from '../services/events';
 import type { Product } from '../services/api';
 import { OutfitEngine } from '../services/outfitEngine';
 import OutfitRecommendationComponent from './OutfitRecommendation';
+import WebcamTryOn from './WebcamTryOn';
 import type { OutfitRecommendation as OutfitRecommendationType } from '../services/outfitEngine';
 
 interface Message {
@@ -25,14 +26,15 @@ interface SearchResult {
 const SmartAssistant: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [showVisualSearch, setShowVisualSearch] = useState(false);
+    const [showWebcamTryOn, setShowWebcamTryOn] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [messages, setMessages] = useState<Message[]>([
-        { id: 1, text: "Hey there! 👋 I'm S.A.M., your AI shopping assistant for SAMZONE. I can help you find products, recommend outfits, and assist with shopping decisions. What are you looking for today?", sender: 'bot', timestamp: Date.now() }
+        { id: 1, text: "Hey there! 👋 I'm S.A.M., your AI shopping assistant for SAMZONE. I can help you find products, recommend outfits, and even try on clothes using your webcam! What are you looking for today?", sender: 'bot', timestamp: Date.now() }
     ]);
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [allProducts, setAllProducts] = useState<Product[]>([]);
     const [currentOutfit, setCurrentOutfit] = useState<OutfitRecommendationType | null>(null);
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -62,6 +64,11 @@ const SmartAssistant: React.FC = () => {
                 entities.push({ type: 'color', value: color });
             }
         });
+
+        // Detect webcam try-on intent
+        if (lowerMessage.includes('try on') || lowerMessage.includes('webcam') || lowerMessage.includes('camera') || lowerMessage.includes('virtual try')) {
+            return { intent: 'webcam_try_on', entities };
+        }
 
         // Detect visual search intent
         if (lowerMessage.includes('visual') || lowerMessage.includes('image') || lowerMessage.includes('photo') || lowerMessage.includes('picture') || lowerMessage.includes('upload')) {
@@ -151,6 +158,9 @@ const SmartAssistant: React.FC = () => {
                 eventBus.emit(EVENTS.PRODUCT_SELECTED, selectedProduct);
                 responseText = `Added ${selectedProduct.name} to your cart!`;
             }
+        } else if (intent === 'webcam_try_on') {
+            setShowWebcamTryOn(true);
+            responseText = "Opening webcam try-on interface. Position yourself in front of the camera and I'll help you try on clothes virtually!";
         } else if (intent === 'visual_search') {
             setShowVisualSearch(true);
             responseText = "Opening visual search panel. Upload an image to find similar products!";
@@ -340,7 +350,16 @@ const SmartAssistant: React.FC = () => {
                     onAddToCart={handleAddToCart}
                 />
             )}
-        {/* Visual Search Trigger */}
+        {/* Webcam Try-On Modal */}
+            {showWebcamTryOn && (
+                <WebcamTryOn
+                    selectedProduct={selectedProduct || undefined}
+                    onClose={() => setShowWebcamTryOn(false)}
+                    onAddToCart={(product) => eventBus.emit(EVENTS.PRODUCT_SELECTED, product)}
+                />
+            )}
+
+            {/* Visual Search Trigger */}
             {showVisualSearch && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">

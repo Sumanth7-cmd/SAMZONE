@@ -7,6 +7,7 @@ import SmartAssistantNew from './components/SmartAssistantNew';
 import VisualSearch from './components/VisualSearch';
 import SmartAssistantAI from './components/SmartAssistantAI';
 import VisualSearchAI from './components/VisualSearchAI';
+import WebcamButton from './components/WebcamButton';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Loader } from 'lucide-react';
 
@@ -54,6 +55,7 @@ function App() {
           <VisualSearch />
           <SmartAssistantAI />
           <VisualSearchAI />
+          <WebcamButton />
         </div>
       </Router>
     </ErrorBoundary>
