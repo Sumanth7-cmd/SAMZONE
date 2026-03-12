@@ -5,6 +5,8 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import SmartAssistantNew from './components/SmartAssistantNew';
 import VisualSearch from './components/VisualSearch';
+import SmartAssistantAI from './components/SmartAssistantAI';
+import VisualSearchAI from './components/VisualSearchAI';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Loader } from 'lucide-react';
 
@@ -50,6 +52,8 @@ function App() {
           <Footer />
           <SmartAssistantNew />
           <VisualSearch />
+          <SmartAssistantAI />
+          <VisualSearchAI />
         </div>
       </Router>
     </ErrorBoundary>
