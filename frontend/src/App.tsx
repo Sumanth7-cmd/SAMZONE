@@ -4,6 +4,7 @@ import { Suspense, lazy } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import SmartAssistantNew from './components/SmartAssistantNew';
+import VisualSearch from './components/VisualSearch';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Loader } from 'lucide-react';
 
@@ -48,6 +49,7 @@ function App() {
           </main>
           <Footer />
           <SmartAssistantNew />
+          <VisualSearch />
         </div>
       </Router>
     </ErrorBoundary>

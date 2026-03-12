@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, ShoppingCart, Eye, Sparkles } from 'lucide-react';
+import { X, Send, Bot, ShoppingCart, Eye, Sparkles, Camera } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { eventBus, EVENTS } from '../services/events';
 import type { Product } from '../services/api';
@@ -24,6 +24,7 @@ interface SearchResult {
 
 const SmartAssistant: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [showVisualSearch, setShowVisualSearch] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
         { id: 1, text: "Hey there! 👋 I'm S.A.M., your AI shopping assistant for SAMZONE. I can help you find products, recommend outfits, and assist with shopping decisions. What are you looking for today?", sender: 'bot', timestamp: Date.now() }
     ]);
@@ -61,6 +62,11 @@ const SmartAssistant: React.FC = () => {
                 entities.push({ type: 'color', value: color });
             }
         });
+
+        // Detect visual search intent
+        if (lowerMessage.includes('visual') || lowerMessage.includes('image') || lowerMessage.includes('photo') || lowerMessage.includes('picture') || lowerMessage.includes('upload')) {
+            return { intent: 'visual_search', entities };
+        }
 
         // Detect outfit-related keywords
         if (lowerMessage.includes('outfit') || lowerMessage.includes('recommend') || lowerMessage.includes('suggest') || lowerMessage.includes('complete')) {
@@ -145,6 +151,9 @@ const SmartAssistant: React.FC = () => {
                 eventBus.emit(EVENTS.PRODUCT_SELECTED, selectedProduct);
                 responseText = `Added ${selectedProduct.name} to your cart!`;
             }
+        } else if (intent === 'visual_search') {
+            setShowVisualSearch(true);
+            responseText = "Opening visual search panel. Upload an image to find similar products!";
         } else {
             responseText = "I'm here to help with your shopping needs! Feel free to ask me about products, styles, or recommendations.";
         }
@@ -330,6 +339,21 @@ const SmartAssistant: React.FC = () => {
                     onClose={handleCloseOutfit}
                     onAddToCart={handleAddToCart}
                 />
+            )}
+        {/* Visual Search Trigger */}
+            {showVisualSearch && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">Visual Search Ready</h3>
+                        <p className="text-gray-600 mb-6">Click the camera button in the top-right corner to upload an image and find similar products!</p>
+                        <button
+                            onClick={() => setShowVisualSearch(false)}
+                            className="w-full bg-purple-600 text-white py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                            Got it!
+                        </button>
+                    </div>
+                </div>
             )}
         </>
     );

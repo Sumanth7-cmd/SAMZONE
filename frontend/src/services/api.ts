@@ -15,6 +15,7 @@ export interface Product {
     colors?: string[];
     sizes?: string[];
     specifications?: string;
+    style?: string;
 }
 
 export interface PaginatedResponse<T> {
