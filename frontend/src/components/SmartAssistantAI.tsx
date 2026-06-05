@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, Sparkles, Brain, TrendingUp } from 'lucide-react';
+import { X, Send, Sparkles, Brain } from 'lucide-react';
 import { eventBus, EVENTS } from '../services/events';
 import type { Product } from '../services/api';
 import { productApi } from '../services/api';
@@ -36,11 +36,12 @@ const SmartAssistantAI: React.FC = () => {
         
         // Load products
         productApi.getAllProducts().then(async (products) => {
-            const productArray = products.content || products;
+            const productArray = Array.isArray(products) ? products : (products as any).content || products;
             setAllProducts(productArray);
             
             // Initialize embeddings if not cached
-            if (AIEmbeddingsService.loadCachedEmbeddings().length === 0) {
+            const cachedEmbeddings = AIEmbeddingsService.loadCachedEmbeddings();
+            if (Array.isArray(cachedEmbeddings) && cachedEmbeddings.length === 0) {
                 await AIEmbeddingsService.initializeEmbeddings(productArray);
             }
         }).catch(console.error);

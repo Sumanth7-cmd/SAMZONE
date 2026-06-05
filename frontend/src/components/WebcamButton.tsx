@@ -1,29 +1,9 @@
 import React, { useState } from 'react';
-import { Camera, Sparkles } from 'lucide-react';
+import { Camera } from 'lucide-react';
 import WebcamTryOn from './WebcamTryOn';
-import type { Product } from '../services/api';
-import { eventBus, EVENTS } from '../services/events';
 
 const WebcamButton: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-
-    // Listen for product selection events
-    React.useEffect(() => {
-        const handleProductSelect = (event: CustomEvent) => {
-            setSelectedProduct(event.detail);
-        };
-
-        window.addEventListener('productSelected', handleProductSelect as EventListener);
-        
-        return () => {
-            window.removeEventListener('productSelected', handleProductSelect as EventListener);
-        };
-    }, []);
-
-    const handleAddToCart = (product: Product) => {
-        eventBus.emit(EVENTS.PRODUCT_SELECTED, product);
-    };
 
     return (
         <>
@@ -39,9 +19,7 @@ const WebcamButton: React.FC = () => {
             {/* Webcam Try-On Modal */}
             {isOpen && (
                 <WebcamTryOn
-                    selectedProduct={selectedProduct}
                     onClose={() => setIsOpen(false)}
-                    onAddToCart={handleAddToCart}
                 />
             )}
         </>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, SlidersHorizontal, Star, Heart, ShoppingBag, TrendingUp, Tag } from 'lucide-react';
+import { Search, SlidersHorizontal, Heart, TrendingUp, Tag } from 'lucide-react';
 import { productApi } from '../services/api';
 import type { Product, ProductFilters } from '../services/api';
 import ProductCard from '../components/ProductCard';
@@ -40,13 +40,7 @@ const Shop: React.FC = () => {
         try {
             setLoading(true);
             setError(null);
-            const response = await productApi.getProducts({
-                page: currentPage,
-                size: pageSize,
-                ...filters,
-                sortBy,
-                sortDir: 'asc'
-            });
+            const response = await productApi.getProducts(currentPage, pageSize, filters);
             setProducts(response.content);
             setTotalPages(response.totalPages);
             setTotalElements(response.totalElements);
@@ -303,34 +297,8 @@ const Shop: React.FC = () => {
                                 >
                                     Next
                                 </button>
-                                            return (
-                                                <button
-                                                    key={pageNum}
-                                                    onClick={() => setCurrentPage(pageNum)}
-                                                    className={`px-3 py-2 text-sm font-medium rounded-md ${
-                                                        currentPage === pageNum
-                                                            ? 'bg-indigo-600 text-white'
-                                                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                                                    }`}
-                                                >
-                                                    {pageNum + 1}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    
-                                    <button
-                                        onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                                        disabled={currentPage === totalPages - 1}
-                                        className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        Next
-                                    </button>
-                                </nav>
                             </div>
                         )}
-                    </>
-                )}
 
                 {loading && currentPage > 0 && (
                     <div className="mt-8 text-center">
@@ -338,7 +306,9 @@ const Shop: React.FC = () => {
                         <p className="text-gray-600 mt-2">Loading more products...</p>
                     </div>
                 )}
+                </div>
             </div>
+        </div>
         </div>
     );
 };

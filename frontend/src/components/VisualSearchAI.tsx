@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, Camera, X, Sparkles, Brain, TrendingUp, User } from 'lucide-react';
+import { Upload, X, Sparkles, Brain, TrendingUp, User } from 'lucide-react';
 import type { Product } from '../services/api';
 import { AIEmbeddingsService, type OutfitFromImage } from '../services/aiEmbeddings';
 import OutfitRecommendationComponent from './OutfitRecommendation';
@@ -238,7 +238,7 @@ const VisualSearchAI: React.FC = () => {
                                     <>
                                         <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Similarity Results</h3>
                                         <div className="space-y-4 max-h-96 overflow-y-auto">
-                                            {similarProducts.map((result, index) => (
+                                            {similarProducts.map((result) => (
                                                 <div key={result.product.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-lg transition-all">
                                                     <div className="flex gap-4">
                                                         <img 

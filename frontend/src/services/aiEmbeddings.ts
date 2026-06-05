@@ -264,7 +264,7 @@ export class AIEmbeddingsService {
             
             // Sort by user preferences
             const scored = items.map(item => {
-                let score = item.similarity;
+                let score = item.similarity || 0;
                 
                 // Brand preference
                 if (this.userProfile.favoriteBrands.includes(item.productData.brand)) {
@@ -292,7 +292,7 @@ export class AIEmbeddingsService {
                 return { ...item, personalizedScore: score };
             });
             
-            return scored.sort((a, b) => b.personalizedScore - a.personalizedScore)[0].productData;
+            return scored.sort((a, b) => (b.personalizedScore || 0) - (a.personalizedScore || 0))[0]?.productData;
         };
         
         const top = selectBestItem(tops, 'shirt');

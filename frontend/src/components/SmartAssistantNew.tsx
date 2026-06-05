@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, ShoppingCart, Eye, Sparkles, Camera } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { X, Send, Bot, Sparkles } from 'lucide-react';
 import { eventBus, EVENTS } from '../services/events';
 import type { Product } from '../services/api';
+import { productApi } from '../services/api';
 import { OutfitEngine } from '../services/outfitEngine';
 import OutfitRecommendationComponent from './OutfitRecommendation';
 import WebcamTryOn from './WebcamTryOn';
@@ -15,12 +15,6 @@ interface Message {
     products?: Product[];
     loading?: boolean;
     timestamp?: number;
-}
-
-interface SearchResult {
-    products: Product[];
-    query: string;
-    total: number;
 }
 
 const SmartAssistant: React.FC = () => {
@@ -261,7 +255,7 @@ const SmartAssistant: React.FC = () => {
 
                         {/* Messages */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                            {messages.map((message, index) => (
+                            {messages.map((message) => (
                                 <div
                                     key={message.id}
                                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
@@ -355,7 +349,6 @@ const SmartAssistant: React.FC = () => {
                 <WebcamTryOn
                     selectedProduct={selectedProduct || undefined}
                     onClose={() => setShowWebcamTryOn(false)}
-                    onAddToCart={(product) => eventBus.emit(EVENTS.PRODUCT_SELECTED, product)}
                 />
             )}
 

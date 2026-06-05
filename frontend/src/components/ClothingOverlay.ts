@@ -45,22 +45,41 @@ export class ClothingOverlayService {
 
     // Start rendering loop
     static startRendering(video: HTMLVideoElement): void {
-        if (!this.canvas || !this.ctx || !video) return;
+        if (!this.canvas || !this.ctx || !video) {
+            console.error("Overlay: Missing required elements", { 
+                canvas: !!this.canvas, 
+                ctx: !!this.ctx, 
+                video: !!video 
+            });
+            return;
+        }
 
         const render = () => {
-            // Clear canvas
-            this.ctx?.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            try {
+                // Global safety check
+                if (!this.ctx || !this.canvas || !video) {
+                    console.warn("Overlay skipped: missing ctx/canvas/video");
+                    return;
+                }
 
-            // Draw video frame (optional - for see-through effect)
-            this.ctx?.globalAlpha = 0.3;
-            this.ctx?.drawImage(video, 0, 0, this.canvas.width, this.canvas.height);
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-            // Draw overlay items
-            this.ctx?.globalAlpha = 1.0;
-            this.renderOverlayItems();
+                // Draw video frame (optional - for see-through effect)
+                this.ctx.globalAlpha = 0.3;
+                this.ctx.drawImage(video, 0, 0, this.canvas.width, this.canvas.height);
 
-            // Continue animation
-            this.animationId = requestAnimationFrame(render);
+                // Reset alpha
+                this.ctx.globalAlpha = 1.0;
+
+                // Draw overlay items
+                this.renderOverlayItems();
+
+                // Continue animation
+                this.animationId = requestAnimationFrame(render);
+            } catch (err) {
+                console.error("Overlay rendering error:", err);
+            }
         };
 
         render();
@@ -76,10 +95,38 @@ export class ClothingOverlayService {
 
     // Render all overlay items
     private static renderOverlayItems(): void {
-        if (!this.ctx) return;
+        if (!this.ctx || !this.overlayItems) {
+            console.warn("Overlay: No context or items available");
+            return;
+        }
 
         this.overlayItems.forEach(item => {
-            this.renderClothingItem(item);
+            if (!item || !item.product || !item.product.image) {
+                console.warn("Overlay: Invalid item", item);
+                return;
+            }
+
+            try {
+                // Load image first
+                const img = new Image();
+                img.onload = () => {
+                    if (!this.ctx) return;
+                    
+                    this.ctx.drawImage(
+                        img,
+                        item.position?.x || 0,
+                        item.position?.y || 0,
+                        item.position?.width || 100,
+                        item.position?.height || 100
+                    );
+                };
+                img.onerror = () => {
+                    console.error("Failed to load image:", item.product.image);
+                };
+                img.src = item.product.image;
+            } catch (err) {
+                console.error("Draw error:", err);
+            }
         });
     }
 
@@ -98,22 +145,30 @@ export class ClothingOverlayService {
             this.ctx.save();
 
             // Apply transformations
-            this.ctx.globalAlpha = opacity;
-            this.ctx.translate(position.x + position.width / 2, position.y + position.height / 2);
-            this.ctx.rotate((rotation * Math.PI) / 180);
-            this.ctx.translate(-(position.width / 2), -(position.height / 2));
+            if (this.ctx) {
+                this.ctx.globalAlpha = opacity;
+                this.ctx.translate(position.x + position.width / 2, position.y + position.height / 2);
+                this.ctx.rotate((rotation * Math.PI) / 180);
+                this.ctx.translate(-(position.width / 2), -(position.height / 2));
+            }
 
             // Draw clothing item with shadow for depth
-            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-            this.ctx.shadowBlur = 10;
-            this.ctx.shadowOffsetX = 5;
-            this.ctx.shadowOffsetY = 5;
+            if (this.ctx) {
+                this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowOffsetX = 5;
+                this.ctx.shadowOffsetY = 5;
+            }
 
             // Draw the clothing image
-            this.ctx.drawImage(img, position.x, position.y, position.width, position.height);
+            if (this.ctx) {
+                this.ctx.drawImage(img, position.x, position.y, position.width, position.height);
+            }
 
             // Restore context state
-            this.ctx.restore();
+            if (this.ctx) {
+                this.ctx.restore();
+            }
         };
         img.src = product.image;
     }

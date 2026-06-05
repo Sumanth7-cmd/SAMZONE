@@ -115,7 +115,7 @@ const TryOn: React.FC = () => {
             }
         };
 
-        productImg.src = selectedProduct.image;
+        productImg.src = selectedProduct?.image;
     };
 
     // Enhanced pose detection with body size estimation
@@ -296,8 +296,6 @@ const TryOn: React.FC = () => {
 
         // Enhanced skin tone classification
         const brightness = (r + g + b) / 3;
-        const redness = r - brightness;
-        const warmth = (r + g) / 2 - b;
         
         let tone = '';
         let recommendations: string[] = [];
@@ -413,7 +411,7 @@ const TryOn: React.FC = () => {
                     setTryOnResult(canvas.toDataURL('image/png'));
                     setIsProcessing(false);
                 };
-                productImg.src = selectedProduct.image;
+                productImg.src = selectedProduct?.image;
             };
             userImg.src = userImage;
         }, 1500);
@@ -587,7 +585,7 @@ const TryOn: React.FC = () => {
                                 {selectedProduct ? (
                                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                                         <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 mb-8 group cursor-default">
-                                            <img src={selectedProduct.image} className="w-14 h-14 object-cover rounded-xl shadow-lg group-hover:scale-105 transition-transform" alt="" />
+                                            <img src={selectedProduct?.image} className="w-14 h-14 object-cover rounded-xl shadow-lg group-hover:scale-105 transition-transform" alt="" />
                                             <div className="min-w-0">
                                                 <p className="text-[10px] font-black text-indigo-600 uppercase tracking-tighter mb-0.5">{selectedProduct.brand}</p>
                                                 <p className="text-sm font-bold text-gray-900 truncate">{selectedProduct.name}</p>
@@ -693,6 +691,7 @@ const TryOn: React.FC = () => {
                                                                 <p className="text-sm font-medium text-gray-600">Suggested Size</p>
                                                                 <p className="text-lg font-bold text-gray-900">{recommendedSize}</p>
                                                             </div>
+                                                        )}
                                                         
                                                         {outfitScore > 0 && (
                                                             <div className="md:col-span-2">

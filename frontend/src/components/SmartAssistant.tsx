@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, ShoppingCart, Eye, Search, Package, Sparkles } from 'lucide-react';
+import { X, Send, Bot, ShoppingCart, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { eventBus, EVENTS } from '../services/events';
 import type { Product } from '../services/api';
 import { productApi } from '../services/api';
-import { OutfitEngine } from '../services/outfitEngine';
-import OutfitRecommendationComponent from './OutfitRecommendation';
 
 interface Message {
     id: number;
@@ -91,7 +89,8 @@ const SmartAssistant: React.FC = () => {
         
         setIsSearching(true);
         try {
-            const products = await productApi.searchProducts(query);
+            const response = await productApi.searchProducts(query);
+            const products = Array.isArray(response) ? response : response.content || [];
             setSearchResults({
                 products: products.slice(0, 5), // Limit to 5 results
                 query: query,
@@ -198,26 +197,14 @@ const SmartAssistant: React.FC = () => {
                 );
             } else if (entity.type === 'price') {
                 filteredProducts = filteredProducts.filter(p => p.price <= entity.value);
-                    filtered = filtered.filter(p => 
-                        p.category.toLowerCase().includes(entity.value) ||
-                        p.name.toLowerCase().includes(entity.value)
-                    );
-                    break;
-                case 'color':
-                    filtered = filtered.filter(p => 
-                        p.colors?.some(color => color.toLowerCase().includes(entity.value))
-                    );
-                    break;
-                case 'price_range':
-                    filtered = filtered.filter(p => p.price >= entity.min && p.price <= entity.max);
-                    break;
-                case 'max_price':
-                    filtered = filtered.filter(p => p.price <= entity.value);
-                    break;
+            } else if (entity.type === 'price_range') {
+                filteredProducts = filteredProducts.filter(p => p.price >= entity.min && p.price <= entity.max);
+            } else if (entity.type === 'max_price') {
+                filteredProducts = filteredProducts.filter(p => p.price <= entity.value);
             }
         });
 
-        return filtered.slice(0, 3);
+        return filteredProducts.slice(0, 3);
     };
 
     const getOutfitSuggestions = (entities: any[]): Product[] => {
@@ -420,7 +407,8 @@ const SmartAssistant: React.FC = () => {
                 let recommendedProducts: Product[] = [];
 
                 if (detectedIntent === 'product_search') {
-                    recommendedProducts = searchProducts(entities);
+                    const query = Array.isArray(entities) ? input : (entities as any).query || input;
+                    searchProducts(query);
                 } else if (detectedIntent === 'outfit_suggestion' || detectedIntent === 'outfit_recommendation') {
                     recommendedProducts = getOutfitSuggestions(entities);
                 }

@@ -1,8 +1,11 @@
-# 🛍️ SAMZONE - AI Virtual Try-On E-Commerce Platform
+# 🛍️ SAMZONE - AI-Powered E-Commerce Platform
 
-A cutting-edge AI-powered fashion shopping platform with virtual try-on capabilities, intelligent recommendations, and conversational AI assistant.
+## 🚀 Live Demo
+👉 **https://samzone.vercel.app** *(Deploying soon...)*
 
-## 🚀 Features
+## 🎯 Project Overview
+
+SAMZONE is a cutting-edge AI-powered e-commerce platform that combines the best features of Amazon, Myntra, and ChatGPT. Built with React, TypeScript, and advanced AI capabilities, it delivers a revolutionary shopping experience with virtual try-on, intelligent recommendations, and humanlike AI assistance.
 
 ### 🎯 Core Features
 - **Virtual Try-On Studio**: Real-time pose tracking with TensorFlow MoveNet

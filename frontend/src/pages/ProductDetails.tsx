@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { productApi } from '../services/api';
 import type { Product } from '../services/api';
-import { ShoppingCart, ArrowLeft, Star, Eye, Heart, Share2, Sparkles } from 'lucide-react';
-import { eventBus, EVENTS } from '../services/events';
+import { ArrowLeft, Star, Heart, Share2 } from 'lucide-react';
 
 const ProductDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -34,41 +33,6 @@ const ProductDetails: React.FC = () => {
 
         fetchProduct();
     }, [id]);
-
-    const handleAddToCart = () => {
-        if (!product) return;
-        
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-        const existingItem = cart.find((item: any) => 
-            item.id === product.id && 
-            item.size === selectedSize && 
-            item.color === selectedColor
-        );
-        
-        if (existingItem) {
-            existingItem.quantity += quantity;
-        } else {
-            cart.push({
-                id: product.id,
-                name: product.name,
-                price: product.discount ? product.price * (1 - product.discount / 100) : product.price,
-                image: product.image,
-                quantity,
-                size: selectedSize,
-                color: selectedColor,
-                stock: product.stock
-            });
-        }
-        
-        localStorage.setItem('cart', JSON.stringify(cart));
-        
-        // Show toast notification
-        const toast = document.createElement('div');
-        toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse';
-        toast.textContent = 'Added to cart!';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
-    };
 
     const discountedPrice = product?.discount 
         ? product.price * (1 - product.discount / 100) 
@@ -285,14 +249,22 @@ const ProductDetails: React.FC = () => {
                                     <div className="bg-gray-50 p-4 rounded-lg">
                                         <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans">
                                             {product.specifications}
-                                <button
-                                    key={index}
-                                    onClick={() => setSelectedImage(index)}
-                                    className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                                        selectedImage === index 
-                                            ? 'border-indigo-600' 
-                                            : 'border-gray-200 hover:border-gray-300'
-                                    }`}
+                                        </pre>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Image Gallery */}
+                            <div className="grid grid-cols-4 gap-2 mb-6">
+                                {product.images?.map((image, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => setSelectedImage(index)}
+                                        className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                                            selectedImage === index 
+                                                ? 'border-indigo-600' 
+                                                : 'border-gray-200 hover:border-gray-300'
+                                        }`}
                                 >
                                     <img
                                         src={image}
@@ -301,17 +273,22 @@ const ProductDetails: React.FC = () => {
                                     />
                                 </button>
                             ))}
-                                        Try On
-                                    </Link>
-                                    <button className="flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
-                                        Buy Now
-                                    </button>
-                                </div>
-                            </div>
+                        </div>
+                        <div className="flex gap-4 mt-4">
+                            <Link 
+                                to={`/try-on/${product.id}`}
+                                className="flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                            >
+                                Try On
+                            </Link>
+                            <button className="flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
+                                Buy Now
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
         </div>
     );
 };

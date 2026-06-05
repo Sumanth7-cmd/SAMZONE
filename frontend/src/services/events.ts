@@ -26,4 +26,5 @@ export const eventBus = new EventEmitter();
 export const EVENTS = {
     PRODUCT_SELECTED: 'PRODUCT_SELECTED',
     TRY_ON_STARTED: 'TRY_ON_STARTED',
+    ADD_TO_CART: 'ADD_TO_CART',
 };

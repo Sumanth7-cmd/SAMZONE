@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Upload, Camera, X, Search, Sparkles, Eye } from 'lucide-react';
+import { Upload, Camera, X, Sparkles } from 'lucide-react';
 import type { Product } from '../services/api';
 
 interface ImageFeatures {
@@ -21,7 +21,6 @@ const VisualSearch: React.FC = () => {
     const [imageFeatures, setImageFeatures] = useState<ImageFeatures | null>(null);
     const [similarProducts, setSimilarProducts] = useState<SimilarityResult[]>([]);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
     
     const fileInputRef = useRef<HTMLInputElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -135,124 +134,18 @@ const VisualSearch: React.FC = () => {
             }
         }
 
-        // Determine style
-        let styleGuess = 'casual';
-        if (colorCategory === 'black' && categoryGuess === 'hoodie') {
-            styleGuess = 'streetwear';
-        } else if (colorCategory === 'blue' && categoryGuess === 'shirt') {
-            styleGuess = 'formal';
-        } else if (colorCategory === 'gray' && categoryGuess === 'pants') {
-            styleGuess = 'formal';
-        }
-
-        const features: ImageFeatures = {
-            dominantColor: colorCategory,
+        setTimeout(() => {
+            const mockFeatures: ImageFeatures = {
+            dominantColor: dominantColor,
             category: categoryGuess,
-            style: styleGuess,
-            confidence
+            style: 'casual',
+            confidence: 0.85
         };
 
-        setImageFeatures(features);
+        setImageFeatures(mockFeatures);
         setIsAnalyzing(false);
-    }, [uploadedImage]);
-
-    // Find similar products based on image features
-    const findSimilarProducts = useCallback(() => {
-        if (!imageFeatures) return;
-
-        const mockProducts: Product[] = [
-            {
-                id: 301,
-                name: "Urban Oversized Hoodie",
-                category: "hoodie",
-                colors: ["black"],
-                style: "streetwear",
-                price: 1499,
-                brand: "Urban Street",
-                rating: 4.5,
-                description: "Comfortable oversized hoodie with urban streetwear style",
-                image: "https://picsum.photos/seed/hoodie1/400/400.jpg"
-            },
-            {
-                id: 302,
-                name: "Classic Streetwear Jacket",
-                category: "jacket",
-                colors: ["black"],
-                style: "streetwear",
-                price: 1999,
-                brand: "Urban Style",
-                rating: 4.2,
-                description: "Classic streetwear jacket perfect for urban casual outfits",
-                image: "https://picsum.photos/seed/jacket1/400/400.jpg"
-            },
-            {
-                id: 303,
-                name: "Dark Gray Hoodie",
-                category: "hoodie",
-                colors: ["gray"],
-                style: "streetwear",
-                price: 1399,
-                brand: "Urban Street",
-                rating: 4.3,
-                description: "Cozy gray hoodie with relaxed streetwear aesthetic",
-                image: "https://picsum.photos/seed/hoodie2/400/400.jpg"
-            },
-            {
-                id: 304,
-                name: "Formal Blue Shirt",
-                category: "shirt",
-                colors: ["blue"],
-                style: "formal",
-                price: 1799,
-                brand: "Classic Wear",
-                rating: 4.6,
-                description: "Elegant formal blue shirt perfect for business and formal occasions",
-                image: "https://picsum.photos/seed/shirt1/400/400.jpg"
-            }
-        ];
-
-        const results: SimilarityResult[] = mockProducts.map(product => {
-            let score = 0;
-            const reasons: string[] = [];
-
-            // Category matching (highest priority)
-            if (product.category.toLowerCase() === imageFeatures.category.toLowerCase()) {
-                score += 5;
-                reasons.push('Same category');
-            }
-
-            // Color matching (high priority)
-            if (product.colors && product.colors.some(c => c.toLowerCase() === imageFeatures.dominantColor.toLowerCase())) {
-                score += 3;
-                reasons.push('Similar color');
-            }
-
-            // Style matching (medium priority)
-            if (product.style === imageFeatures.style) {
-                score += 2;
-                reasons.push('Matching style');
-            }
-
-            // Rating bonus
-            if (product.rating >= 4.0) {
-                score += 1;
-                reasons.push('Highly rated');
-            }
-
-            return {
-                product,
-                score,
-                reasons
-            };
-        });
-
-        // Sort by score and return top 6
-        const sortedResults = results
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 6);
-
-        setSimilarProducts(sortedResults);
-    }, [imageFeatures]);
+        }, 2000);
+    }, [uploadedImage, canvasRef, imageRef]);
 
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -263,11 +156,13 @@ const VisualSearch: React.FC = () => {
             const result = e.target?.result as string;
             setUploadedImage(result);
             
-            // Create image element for analysis
-            if (imageRef.current) {
-                imageRef.current.onload = () => analyzeImage();
-                imageRef.current.src = result;
-            }
+            setTimeout(() => {
+                // Simulate image analysis for analysis
+                if (imageRef.current) {
+                    imageRef.current.onload = () => analyzeImage();
+                    imageRef.current.src = result;
+                }
+            }, 0);
         };
         reader.readAsDataURL(file);
     };
@@ -277,7 +172,6 @@ const VisualSearch: React.FC = () => {
         setUploadedImage(null);
         setImageFeatures(null);
         setSimilarProducts([]);
-        setSearchQuery('');
     };
 
     return (
@@ -331,52 +225,63 @@ const VisualSearch: React.FC = () => {
                                         <p className="text-sm text-gray-500">Upload a photo of clothing to find similar items</p>
                                     </label>
                                 </div>
-                            </div>
 
-                            {/* Analysis Section */}
-                            {uploadedImage && (
-                                <div className="lg:col-span-1">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Image Analysis</h3>
-                                    <div className="bg-gray-50 p-6 rounded-xl">
-                                        {isAnalyzing ? (
-                                            <div className="flex items-center justify-center py-8">
-                                                <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
-                                                <p className="text-lg font-medium text-gray-700 mt-4">Analyzing image...</p>
-                                            </div>
-                                        ) : imageFeatures && (
-                                            <div className="space-y-4">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-sm font-medium text-gray-600">Detected Category:</span>
-                                                    <span className="text-lg font-bold text-gray-900 capitalize">{imageFeatures.category}</span>
+                                {uploadedImage && (
+                                    <div className="mt-4">
+                                        <h4 className="text-sm font-semibold text-gray-900 mb-2">Uploaded Image</h4>
+                                        <div className="relative rounded-lg overflow-hidden">
+                                            <img 
+                                                src={uploadedImage} 
+                                                alt="Uploaded clothing" 
+                                                className="w-full h-48 object-cover"
+                                            />
+                                            {isAnalyzing && (
+                                                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                                                    <div className="text-white text-center">
+                                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                                                        <p className="text-sm">Analyzing image...</p>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-sm font-medium text-gray-600">Dominant Color:</span>
-                                                    <span className={`text-lg font-bold capitalize ${
-                                                        imageFeatures.dominantColor === 'black' ? 'text-gray-900' :
-                                                        imageFeatures.dominantColor === 'white' ? 'text-gray-100' :
-                                                        imageFeatures.dominantColor === 'gray' ? 'text-gray-600' :
-                                                        'text-gray-700'
-                                                    }`}>
-                                                        {imageFeatures.dominantColor}
-                                                    </span>
-                                                    <span className="text-sm text-gray-500">({Math.round(imageFeatures.confidence * 100)}% confidence)</span>
-                                                </div>
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-sm font-medium text-gray-600">Detected Style:</span>
-                                                    <span className="text-lg font-bold text-gray-900 capitalize">{imageFeatures.style}</span>
-                                                </div>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+
+                                {imageFeatures && (
+                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                                        <h4 className="text-sm font-semibold text-gray-900 mb-2">Detected Features</h4>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm font-medium text-gray-600">Category:</span>
+                                                <span className="text-lg font-bold text-gray-900 capitalize">{imageFeatures.category}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm font-medium text-gray-600">Dominant Color:</span>
+                                                <span className={`text-lg font-bold capitalize ${
+                                                    imageFeatures.dominantColor === 'black' ? 'text-gray-900' :
+                                                    imageFeatures.dominantColor === 'white' ? 'text-gray-100' :
+                                                    imageFeatures.dominantColor === 'gray' ? 'text-gray-600' :
+                                                    'text-gray-700'
+                                                }`}>
+                                                    {imageFeatures.dominantColor}
+                                                </span>
+                                                <span className="text-sm text-gray-500">({Math.round(imageFeatures.confidence * 100)}% confidence)</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm font-medium text-gray-600">Detected Style:</span>
+                                                <span className="text-lg font-bold text-gray-900 capitalize">{imageFeatures.style}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Results Section */}
                             {similarProducts.length > 0 && (
                                 <div className="lg:col-span-2">
                                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Similar Products</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {similarProducts.map((result, index) => (
+                                        {similarProducts.map((result) => (
                                             <div key={result.product.id} className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-lg transition-all">
                                                 <div className="flex gap-4">
                                                     <img 
@@ -408,16 +313,16 @@ const VisualSearch: React.FC = () => {
                                                             <div className="text-xs text-gray-500">
                                                                 {result.reasons.join(' • ')}
                                                             </div>
-                                                        </div>
-                                                        
-                                                        {/* Actions */}
-                                                        <div className="mt-4 flex gap-2">
-                                                            <button className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors text-sm">
-                                                                View Details
-                                                            </button>
-                                                            <button className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors text-sm">
-                                                                Add to Cart
-                                                            </button>
+                                                            
+                                                            {/* Actions */}
+                                                            <div className="mt-4 flex gap-2">
+                                                                <button className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                                                                    View Details
+                                                                </button>
+                                                                <button className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors text-sm">
+                                                                    Add to Cart
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -429,8 +334,7 @@ const VisualSearch: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            </div>
-        )}
+            )}
         </>
     );
 };
