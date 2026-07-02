@@ -1,7 +1,34 @@
 import { mockApi } from './mockApi';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api`;
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true' || false;
+
+// Amazon-sourced prices in the database are stored in USD; Myntra prices are
+// already in INR. There's no reliable per-row way to tell them apart, so we
+// apply this as a blanket approximation to make prices read correctly for
+// Indian users (Myntra items will look inflated as a known tradeoff).
+export const USD_TO_INR_RATE = 83;
+
+// The seeded catalog's `colors` field only ever holds a handful of basic
+// values (Black, Blue, Green, Red, White), but skin-tone recommendations use
+// fashion names (Coral, Gold, Mustard, Emerald, ...) that never appear
+// verbatim. Without this fallback, most recommended colors would match zero
+// products, so each fashion name maps to its nearest basic catalog color.
+const COLOR_FAMILY_FALLBACK: Record<string, string[]> = {
+    coral: ['red'],
+    peach: ['white', 'red'],
+    mustard: ['green'],
+    gold: ['white'],
+    lavender: ['blue'],
+    teal: ['blue', 'green'],
+    plum: ['red', 'black'],
+    'hot pink': ['red'],
+    emerald: ['green'],
+    'forest green': ['green'],
+    'olive green': ['green'],
+    'royal blue': ['blue'],
+    'navy blue': ['blue'],
+};
 
 export interface Product {
     id: number;
@@ -19,6 +46,7 @@ export interface Product {
     sizes?: string[];
     specifications?: string;
     style?: string;
+    tags?: string[];
 }
 
 export interface PaginatedResponse<T> {
@@ -76,7 +104,7 @@ export const productApi = {
                     name: p.name,
                     brand: p.brand,
                     description: p.description,
-                    price: p.price,
+                    price: p.price * USD_TO_INR_RATE,
                     rating: p.rating,
                     image: p.images?.[0] || 'https://picsum.photos/300',
                     category: p.category,
@@ -124,7 +152,7 @@ export const productApi = {
                 name: p.name,
                 brand: p.brand,
                 description: p.description,
-                price: p.price,
+                price: p.price * USD_TO_INR_RATE,
                 rating: p.rating,
                 image: p.images?.[0] || 'https://picsum.photos/300',
                 category: p.category,
@@ -166,7 +194,7 @@ export const productApi = {
                     name: p.name,
                     brand: p.brand,
                     description: p.description,
-                    price: p.price,
+                    price: p.price * USD_TO_INR_RATE,
                     rating: p.rating,
                     image: p.images?.[0] || 'https://picsum.photos/300',
                     category: p.category,
@@ -199,5 +227,29 @@ export const productApi = {
             console.warn('Backend API unavailable, using mock data:', error);
             return mockApi.getCategories();
         }
+    },
+
+    // The backend's /products/search endpoint only matches name/description/brand,
+    // not the colors field, so this pulls real products from clothing categories and
+    // filters client-side by their `colors` array instead of relying on that endpoint.
+    // getAllProducts() alone only returns the first 100 products by id, which skews
+    // toward non-fashion categories, so this queries clothing categories directly.
+    searchByColor: async (color: string, limit: number = 6): Promise<Product[]> => {
+        const target = color.toLowerCase();
+        const targets = [target, ...(COLOR_FAMILY_FALLBACK[target] || [])];
+        const matchesColor = (p: Product) =>
+            (p.colors || []).some(c => {
+                const cl = c.toLowerCase();
+                return targets.some(t => cl.includes(t) || t.includes(cl));
+            });
+
+        const CLOTHING_CATEGORIES = ["Shirts", "Pants", "Men's Clothing", "Men's Footwear", "Shoes"];
+        const pages = await Promise.all(
+            CLOTHING_CATEGORIES.map(category =>
+                productApi.getProducts(0, 100, { category }).catch(() => ({ content: [] as Product[] }))
+            )
+        );
+        const matches = pages.flatMap(pg => pg.content).filter(matchesColor);
+        return matches.slice(0, limit);
     },
 };

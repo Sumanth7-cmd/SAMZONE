@@ -1,6 +1,10 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Camera, X, Palette, User, CheckCircle, Sparkles } from 'lucide-react';
-import { massiveProductCatalog, type Product } from '../data/massiveProductCatalog';
+import { productApi } from '../services/api';
+import type { Product } from '../services/api';
+import { getProductImage } from '../utils/productImage';
+import { addToCart } from '../utils/cart';
 
 interface SkinToneResult {
     tone: 'light' | 'medium' | 'dark';
@@ -9,18 +13,71 @@ interface SkinToneResult {
     rgbValues: { r: number; g: number; b: number };
     recommendations: string[];
     confidence: number;
-    recommendedProducts: Product[];
     colorPalette: string[];
+    suitableColorNames: string[];
 }
+
+const COLOR_HEX_MAP: Record<string, string> = {
+    coral: '#FF6B6B',
+    peach: '#FFCBA4',
+    'navy blue': '#001F5B',
+    'olive green': '#6B8E23',
+    mustard: '#FFDB58',
+    lavender: '#E6E6FA',
+    teal: '#008080',
+    plum: '#8E4585',
+    'forest green': '#228B22',
+    white: '#FFFFFF',
+    black: '#000000',
+    gold: '#FFD700',
+    'royal blue': '#4169E1',
+    'hot pink': '#FF69B4',
+    emerald: '#50C878',
+};
+
+function colorToHex(colorName: string): string {
+    return COLOR_HEX_MAP[colorName.toLowerCase()] ?? '#9CA3AF';
+}
+
+const SUITABLE_COLOR_NAMES: Record<'light' | 'medium' | 'dark', Record<'warm' | 'cool' | 'neutral', string[]>> = {
+    light: {
+        warm: ['Peach', 'Coral', 'Gold', 'Mustard'],
+        cool: ['Lavender', 'Teal', 'Royal Blue', 'Plum'],
+        neutral: ['White', 'Navy Blue', 'Olive Green', 'Black'],
+    },
+    medium: {
+        warm: ['Mustard', 'Olive Green', 'Coral', 'Gold'],
+        cool: ['Emerald', 'Royal Blue', 'Plum', 'Teal'],
+        neutral: ['Forest Green', 'Navy Blue', 'Black', 'White'],
+    },
+    dark: {
+        warm: ['Coral', 'Gold', 'Hot Pink', 'Mustard'],
+        cool: ['Royal Blue', 'Emerald', 'Teal', 'Plum'],
+        neutral: ['White', 'Black', 'Hot Pink', 'Forest Green'],
+    },
+};
 
 const SkinToneAnalysis: React.FC = () => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<SkinToneResult | null>(null);
     const [error, setError] = useState<string | null>(null);
-    
+    const [colorProducts, setColorProducts] = useState<Product[]>([]);
+    const [colorProductsLoading, setColorProductsLoading] = useState(false);
+    const [activeColorTab, setActiveColorTab] = useState<string>('');
+
+    const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    const fetchProductsForColor = useCallback((color: string) => {
+        setActiveColorTab(color);
+        setColorProductsLoading(true);
+        productApi.searchByColor(color)
+            .then(setColorProducts)
+            .catch(() => setColorProducts([]))
+            .finally(() => setColorProductsLoading(false));
+    }, []);
 
     const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -71,9 +128,10 @@ const SkinToneAnalysis: React.FC = () => {
                 
                 // Simulate skin tone analysis
                 const skinToneData = simulateSkinToneAnalysis(ctx, canvas.width, canvas.height);
-                
+
                 setAnalysisResult(skinToneData);
                 setIsAnalyzing(false);
+                fetchProductsForColor(skinToneData.suitableColorNames[0]);
             };
             
             img.src = selectedImage;
@@ -233,10 +291,7 @@ const SkinToneAnalysis: React.FC = () => {
         
         // Generate hex color
         const hexColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-        
-        // Get product recommendations based on skin tone and undertone
-        const recommendedProducts = generateProductRecommendations(tone, undertone);
-        
+
         return {
             tone,
             undertone,
@@ -244,43 +299,9 @@ const SkinToneAnalysis: React.FC = () => {
             rgbValues: { r, g, b },
             recommendations,
             confidence: 0.85 + Math.random() * 0.1,
-            recommendedProducts,
-            colorPalette
+            colorPalette,
+            suitableColorNames: SUITABLE_COLOR_NAMES[tone][undertone]
         };
-    };
-
-    const generateProductRecommendations = (skinTone: 'light' | 'medium' | 'dark', undertone: 'warm' | 'cool' | 'neutral'): Product[] => {
-        const suitableColors = {
-            light: {
-                warm: ['peach', 'coral', 'cream', 'terracotta', 'warm brown', 'gold'],
-                cool: ['lavender', 'mint', 'soft blue', 'mauve', 'silver', 'cool gray'],
-                neutral: ['taupe', 'navy', 'gray', 'cream', 'white', 'beige']
-            },
-            medium: {
-                warm: ['rust', 'olive', 'mustard', 'amber', 'bronze', 'copper'],
-                cool: ['emerald', 'sapphire', 'amethyst', 'deep blue', 'purple', 'silver'],
-                neutral: ['red', 'blue', 'green', 'purple', 'orange', 'yellow']
-            },
-            dark: {
-                warm: ['coral', 'orange', 'yellow', 'warm white', 'gold', 'bright red'],
-                cool: ['electric blue', 'fuchsia', 'turquoise', 'crisp white', 'silver', 'bright purple'],
-                neutral: ['white', 'black', 'red', 'blue', 'green', 'yellow']
-            }
-        };
-        
-        const colors = suitableColors[skinTone][undertone];
-        
-        return massiveProductCatalog
-            .filter(product => 
-                product.inStock &&
-                product.colors.some(productColor => 
-                    colors.some(color => 
-                        productColor.toLowerCase().includes(color)
-                    )
-                )
-            )
-            .sort((a, b) => b.rating - a.rating)
-            .slice(0, 8);
     };
 
     const clearImage = () => {
@@ -519,6 +540,18 @@ const SkinToneAnalysis: React.FC = () => {
                                 {/* Color Recommendations */}
                                 <div>
                                     <h3 className="font-semibold text-gray-900 mb-3">Color Recommendations</h3>
+                                    <div className="flex flex-wrap gap-3 mb-4">
+                                        {analysisResult.suitableColorNames.map((colorName) => (
+                                            <div key={colorName} className="flex flex-col items-center gap-1">
+                                                <div
+                                                    style={{ backgroundColor: colorToHex(colorName) }}
+                                                    className="w-8 h-8 rounded-full border-2 border-white shadow-sm ring-1 ring-gray-200"
+                                                    title={colorName}
+                                                />
+                                                <span className="text-xs text-gray-600">{colorName}</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                     <div className="space-y-2">
                                         {analysisResult.recommendations.map((rec, index) => (
                                             <div key={index} className="flex items-center gap-2 p-2 bg-green-50 rounded-lg">
@@ -531,28 +564,96 @@ const SkinToneAnalysis: React.FC = () => {
                                 
                                 {/* Product Recommendations */}
                                 <div>
-                                    <h3 className="font-semibold text-gray-900 mb-3">Recommended Products</h3>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {analysisResult.recommendedProducts.map((product) => (
-                                            <div
-                                                key={product.id}
-                                                className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow"
+                                    <h3 className="font-semibold text-gray-900 mb-1">
+                                        🛍️ Products That Suit Your Skin Tone
+                                    </h3>
+                                    <p className="text-sm text-gray-500 mb-3">
+                                        Tap a color to browse matching products.
+                                    </p>
+
+                                    {/* Color filter tabs */}
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        {analysisResult.suitableColorNames.map((color) => (
+                                            <button
+                                                key={color}
+                                                onClick={() => fetchProductsForColor(color)}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
+                                                    activeColorTab === color
+                                                        ? 'bg-purple-600 text-white border-purple-600'
+                                                        : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
+                                                }`}
                                             >
-                                                <img
-                                                    src={product.image}
-                                                    alt={product.name}
-                                                    className="w-full h-20 object-cover rounded mb-2"
-                                                />
-                                                <h4 className="font-semibold text-xs text-gray-900 line-clamp-1">
-                                                    {product.name}
-                                                </h4>
-                                                <p className="text-xs text-gray-600">{product.brand}</p>
-                                                <p className="text-sm font-bold text-purple-900 mt-1">
-                                                    ₹{product.price.toLocaleString('en-IN')}
-                                                </p>
-                                            </div>
+                                                {color}
+                                            </button>
                                         ))}
                                     </div>
+
+                                    {/* Loading skeletons */}
+                                    {colorProductsLoading && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {[...Array(4)].map((_, i) => (
+                                                <div key={i} className="bg-gray-200 animate-pulse rounded-lg h-40" />
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Product cards */}
+                                    {!colorProductsLoading && colorProducts.length > 0 && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {colorProducts.map((product) => (
+                                                <div
+                                                    key={product.id}
+                                                    className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow flex flex-col"
+                                                >
+                                                    <img
+                                                        src={getProductImage(product)}
+                                                        alt={product.name}
+                                                        className="w-full h-20 object-cover rounded mb-2"
+                                                        loading="lazy"
+                                                        onError={(e) => {
+                                                            e.currentTarget.src = 'https://placehold.co/300x300?text=No+Image';
+                                                            e.currentTarget.onerror = null;
+                                                        }}
+                                                    />
+                                                    <h4 className="font-semibold text-xs text-gray-900 line-clamp-1">
+                                                        {product.name}
+                                                    </h4>
+                                                    <p className="text-xs text-gray-600">{product.brand}</p>
+                                                    <p className="text-sm font-bold text-purple-900 mt-1 mb-2">
+                                                        ₹{Math.round(product.price).toLocaleString('en-IN')}
+                                                    </p>
+                                                    <div className="flex gap-2 mt-auto">
+                                                        <button
+                                                            onClick={() => addToCart({
+                                                                id: product.id,
+                                                                name: product.name,
+                                                                price: product.price,
+                                                                image: getProductImage(product),
+                                                            })}
+                                                            className="flex-1 bg-purple-600 text-white text-xs py-1.5 rounded-lg hover:bg-purple-700 transition-colors"
+                                                        >
+                                                            Add to Cart
+                                                        </button>
+                                                        <button
+                                                            onClick={() => navigate(`/product/${product.id}`)}
+                                                            className="flex-1 border border-purple-600 text-purple-600 text-xs py-1.5 rounded-lg hover:bg-purple-50 transition-colors"
+                                                        >
+                                                            View
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Empty state */}
+                                    {!colorProductsLoading && colorProducts.length === 0 && (
+                                        <div className="text-center py-6 text-gray-500 text-sm">
+                                            <p className="text-3xl mb-2">🔍</p>
+                                            <p>No products found for {activeColorTab || 'this color'}.</p>
+                                            <p className="mt-1">Try selecting a different color above.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}

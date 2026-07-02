@@ -1,6 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, CameraOff, X, Plus, Minus, RotateCw, Shirt, Maximize2, Minimize2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Camera, CameraOff, X, Plus, Minus, RotateCw, Shirt, Maximize2, Minimize2, Download, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react';
 import { massiveProductCatalog, type Product } from '../data/massiveProductCatalog';
+import { productApi } from '../services/api';
+import { getProductImage } from '../utils/productImage';
+import { addToCart } from '../utils/cart';
 
 interface OverlayItem {
     id: string;
@@ -10,26 +14,41 @@ interface OverlayItem {
     scale: number;
     opacity: number;
     rotation: number;
+    selectedSize?: string;
 }
 
+const HOW_IT_WORKS_STEPS = [
+    { icon: '📸', text: 'Upload a full-body photo' },
+    { icon: '👕', text: 'Select a product to try on' },
+    { icon: '✨', text: 'Generate your preview' },
+];
+
 const FixedWebcamTryOn: React.FC = () => {
+    const [searchParams] = useSearchParams();
     const [isWebcamOn, setIsWebcamOn] = useState(false);
     const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
     const [overlayItems, setOverlayItems] = useState<OverlayItem[]>([]);
     const [isMaximized, setIsMaximized] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    
+    const [preselectedProduct, setPreselectedProduct] = useState<Product | null>(null);
+    const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
+    const preselectHandled = useRef(false);
+
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const animationRef = useRef<number | null>(null);
 
     // Filter products for try-on
-    const tryOnProducts = massiveProductCatalog.filter(p => 
-        p.inStock && 
+    const tryOnProducts = massiveProductCatalog.filter(p =>
+        p.inStock &&
         (p.category === 'mens-clothing' || p.category === 'womens-clothing') &&
         (p.subcategory === 'shirts' || p.subcategory === 'tshirts' || p.subcategory === 'dresses')
     ).slice(0, 12);
+
+    const displayProducts = preselectedProduct
+        ? [preselectedProduct, ...tryOnProducts.filter(p => p.id !== preselectedProduct.id)]
+        : tryOnProducts;
 
     const startWebcam = useCallback(async () => {
         try {
@@ -149,7 +168,44 @@ const FixedWebcamTryOn: React.FC = () => {
     const clearAll = useCallback(() => {
         setOverlayItems([]);
         setSelectedProducts([]);
+        setPreviewDataUrl(null);
     }, []);
+
+    const setItemSize = useCallback((id: string, size: string) => {
+        setOverlayItems(prev => prev.map(item =>
+            item.id === id ? { ...item, selectedSize: size } : item
+        ));
+    }, []);
+
+    const generatePreview = useCallback(() => {
+        if (!canvasRef.current) return;
+        setPreviewDataUrl(canvasRef.current.toDataURL('image/png'));
+    }, []);
+
+    const downloadPreview = useCallback(() => {
+        if (!previewDataUrl) return;
+        const link = document.createElement('a');
+        link.href = previewDataUrl;
+        link.download = 'samzone-try-on-preview.png';
+        link.click();
+    }, [previewDataUrl]);
+
+    const tryAnotherSize = useCallback(() => {
+        setOverlayItems(prev => prev.map(item => ({ ...item, selectedSize: undefined })));
+        setPreviewDataUrl(null);
+    }, []);
+
+    const addPreviewToCart = useCallback(() => {
+        overlayItems.forEach(item => {
+            addToCart({
+                id: item.product.id,
+                name: item.product.name,
+                price: item.product.price,
+                image: item.product.image,
+                size: item.selectedSize,
+            });
+        });
+    }, [overlayItems]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -157,6 +213,36 @@ const FixedWebcamTryOn: React.FC = () => {
             stopWebcam();
         };
     }, [stopWebcam]);
+
+    // Preselect a product passed in via ?productId= (e.g. from the product details page)
+    useEffect(() => {
+        const productId = searchParams.get('productId');
+        if (!productId || preselectHandled.current) return;
+        preselectHandled.current = true;
+
+        productApi.getProductById(Number(productId)).then((p) => {
+            const mapped: Product = {
+                id: p.id,
+                name: p.name,
+                price: p.price,
+                image: getProductImage(p),
+                category: 'mens-clothing',
+                subcategory: 'shirts',
+                brand: p.brand,
+                rating: p.rating,
+                colors: p.colors || [],
+                sizes: p.sizes,
+                description: p.description || '',
+                inStock: true,
+                discount: p.discount,
+                tags: [],
+            };
+            setPreselectedProduct(mapped);
+            addProductToOverlay(mapped);
+        }).catch(() => {
+            // ignore - product just won't be preselected
+        });
+    }, [searchParams, addProductToOverlay]);
 
     const containerClass = isMaximized 
         ? "fixed inset-0 bg-black z-50 flex flex-col"
@@ -199,8 +285,19 @@ const FixedWebcamTryOn: React.FC = () => {
                 {/* Left Side - Webcam */}
                 <div className="flex-1 relative bg-black">
                     {!isWebcamOn ? (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="text-center">
+                        <div className="absolute inset-0 flex items-center justify-center overflow-y-auto py-6">
+                            <div className="text-center px-4">
+                                <div className="bg-white/10 rounded-xl p-4 mb-6 max-w-sm mx-auto">
+                                    <h3 className="text-white font-semibold mb-3">How it works</h3>
+                                    <div className="space-y-2 text-left">
+                                        {HOW_IT_WORKS_STEPS.map((step, i) => (
+                                            <div key={i} className="flex items-center gap-3 text-gray-200 text-sm">
+                                                <span className="text-xl">{step.icon}</span>
+                                                <span>{step.text}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                                 <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                                 <p className="text-white mb-4">Start your webcam to try on products</p>
                                 <button
@@ -304,8 +401,64 @@ const FixedWebcamTryOn: React.FC = () => {
                                             <RotateCw className="w-3 h-3" />
                                         </button>
                                     </div>
+
+                                    {item.product.sizes && item.product.sizes.length > 0 && (
+                                        <div className="flex items-center gap-1 mt-2 flex-wrap">
+                                            {item.product.sizes.map((size) => (
+                                                <button
+                                                    key={size}
+                                                    onClick={() => setItemSize(item.id, size)}
+                                                    className={`px-2 py-0.5 rounded text-xs transition-colors ${
+                                                        item.selectedSize === size
+                                                            ? 'bg-purple-600 text-white border-purple-600'
+                                                            : 'border border-gray-300 text-gray-700 hover:border-purple-400'
+                                                    }`}
+                                                >
+                                                    {size}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
+
+                            {overlayItems.length > 0 && (
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap gap-2 justify-center px-4">
+                                    {!previewDataUrl ? (
+                                        <button
+                                            onClick={generatePreview}
+                                            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-lg"
+                                        >
+                                            <Sparkles className="w-4 h-4" />
+                                            Generate Preview
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={downloadPreview}
+                                                className="bg-white text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm font-medium shadow-lg"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                                Download Preview
+                                            </button>
+                                            <button
+                                                onClick={tryAnotherSize}
+                                                className="bg-white text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm font-medium shadow-lg"
+                                            >
+                                                <RefreshCw className="w-4 h-4" />
+                                                Try Another Size
+                                            </button>
+                                            <button
+                                                onClick={addPreviewToCart}
+                                                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-lg"
+                                            >
+                                                <ShoppingCart className="w-4 h-4" />
+                                                Add to Cart
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
                         </>
                     )}
                     
@@ -333,15 +486,18 @@ const FixedWebcamTryOn: React.FC = () => {
                         </h3>
                         
                         <div className="grid grid-cols-2 gap-3">
-                            {tryOnProducts.map((product) => {
+                            {displayProducts.map((product) => {
                                 const isInOverlay = overlayItems.some(item => item.product.id === product.id);
-                                
+                                const isPreselected = preselectedProduct?.id === product.id;
+
                                 return (
                                     <div
                                         key={product.id}
                                         className={`border rounded-lg p-3 cursor-pointer transition-all hover:shadow-md ${
                                             isInOverlay
                                                 ? 'border-green-600 bg-green-50'
+                                                : isPreselected
+                                                ? 'border-purple-500 bg-purple-50'
                                                 : 'border-gray-200 hover:border-purple-400'
                                         }`}
                                         onClick={() => !isInOverlay && addProductToOverlay(product)}

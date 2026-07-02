@@ -2,20 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface CartItem {
-    id: number;
-    name: string;
-    price: number;
-    image: string;
-    quantity: number;
-    size?: string;
-    color?: string;
-    stock?: number;
-}
+import { CART_EVENT, type CartItem } from '../utils/cart';
+import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 
 const Cart: React.FC = () => {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
+    const [checkedOut, setCheckedOut] = useState(false);
 
     useEffect(() => {
         const loadCart = () => {
@@ -45,8 +37,9 @@ const Cart: React.FC = () => {
                 }
                 return item;
             });
-            
+
             localStorage.setItem('cart', JSON.stringify(updatedItems));
+            window.dispatchEvent(new Event(CART_EVENT));
             return updatedItems;
         });
     };
@@ -55,6 +48,7 @@ const Cart: React.FC = () => {
         setCartItems((items) => {
             const updatedItems = items.filter((item) => item.id !== id);
             localStorage.setItem('cart', JSON.stringify(updatedItems));
+            window.dispatchEvent(new Event(CART_EVENT));
             return updatedItems;
         });
     };
@@ -62,6 +56,12 @@ const Cart: React.FC = () => {
     const clearCart = () => {
         setCartItems([]);
         localStorage.setItem('cart', JSON.stringify([]));
+        window.dispatchEvent(new Event(CART_EVENT));
+    };
+
+    const checkout = () => {
+        clearCart();
+        setCheckedOut(true);
     };
 
     const subtotal = cartItems.reduce(
@@ -94,21 +94,23 @@ const Cart: React.FC = () => {
                         >
                             <ShoppingBag className="w-full h-full" />
                         </motion.div>
-                        <motion.h1 
+                        <motion.h1
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.3, duration: 0.4 }}
                             className="text-3xl font-bold text-gray-900 mb-4"
                         >
-                            Your cart is empty
+                            {checkedOut ? 'Order placed!' : 'Your cart is empty 🛒'}
                         </motion.h1>
-                        <motion.p 
+                        <motion.p
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             transition={{ delay: 0.4, duration: 0.4 }}
                             className="text-xl text-gray-500 mb-8"
                         >
-                            Looks like you haven't added anything to your cart yet.
+                            {checkedOut
+                                ? 'Thank you for shopping with SAMZONE.'
+                                : 'Browse products to add items.'}
                         </motion.p>
                         <motion.div
                             initial={{ scale: 0.8, opacity: 0 }}
@@ -175,9 +177,14 @@ const Cart: React.FC = () => {
                                             layout
                                         >
                                             <motion.img
-                                                src={item.image}
+                                                src={getProductImage(item)}
                                                 alt={item.name}
                                                 className="w-24 h-24 object-cover rounded-md"
+                                                loading="lazy"
+                                                onError={(e) => {
+                                                    e.currentTarget.src = PLACEHOLDER;
+                                                    e.currentTarget.onerror = null;
+                                                }}
                                                 whileHover={{ scale: 1.05 }}
                                                 transition={{ duration: 0.2 }}
                                             />
@@ -318,7 +325,8 @@ const Cart: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
-                            <motion.button 
+                            <motion.button
+                                onClick={checkout}
                                 className="w-full mt-6 bg-indigo-600 text-white py-3 rounded-md hover:bg-indigo-700 transition-colors font-medium"
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}

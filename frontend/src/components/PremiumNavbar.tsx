@@ -14,13 +14,15 @@ import {
     Sparkles
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { CART_EVENT, getCartCount } from '../utils/cart';
+import { WISHLIST_EVENT, getWishlistCount } from '../utils/wishlist';
 
 const PremiumNavbar: React.FC = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [cartCount, setCartCount] = useState(3);
-    const [wishlistCount, setWishlistCount] = useState(7);
+    const [cartCount, setCartCount] = useState(0);
+    const [wishlistCount, setWishlistCount] = useState(0);
     const navigate = useNavigate();
 
     // Close dropdowns when clicking outside
@@ -31,6 +33,28 @@ const PremiumNavbar: React.FC = () => {
 
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        setCartCount(getCartCount());
+        setWishlistCount(getWishlistCount());
+
+        const updateCart = () => setCartCount(getCartCount());
+        const updateWishlist = () => setWishlistCount(getWishlistCount());
+        const handleStorage = (e: StorageEvent) => {
+            if (e.key === 'cart') updateCart();
+            if (e.key === 'wishlist') updateWishlist();
+        };
+
+        window.addEventListener(CART_EVENT, updateCart);
+        window.addEventListener(WISHLIST_EVENT, updateWishlist);
+        window.addEventListener('storage', handleStorage);
+
+        return () => {
+            window.removeEventListener(CART_EVENT, updateCart);
+            window.removeEventListener(WISHLIST_EVENT, updateWishlist);
+            window.removeEventListener('storage', handleStorage);
+        };
     }, []);
 
     const handleSearch = (e: React.FormEvent) => {

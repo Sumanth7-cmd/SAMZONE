@@ -16,7 +16,10 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "external_id", nullable = true)
+    private String externalId;
+
+    @Column(nullable = false, length = 1024)
     private String name;
 
     @Column(nullable = false)
@@ -35,7 +38,7 @@ public class Product {
     @Column(nullable = false)
     private Integer stock;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "product_images", joinColumns = @JoinColumn(name = "product_id"))
     @Column(name = "image_url")
     private List<String> images;
@@ -45,17 +48,19 @@ public class Product {
         return (images != null && !images.isEmpty()) ? images.get(0) : "https://picsum.photos/300";
     }
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "product_sizes", joinColumns = @JoinColumn(name = "product_id"))
     @Column(name = "size")
     private List<String> sizes;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "product_colors", joinColumns = @JoinColumn(name = "product_id"))
     @Column(name = "color")
     private List<String> colors;
 
+    @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(columnDefinition = "TEXT")
     private String specifications;
 }

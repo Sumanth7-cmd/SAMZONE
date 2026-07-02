@@ -5,19 +5,24 @@ import com.samzone.backend.repository.ProductRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+// Fake placeholder catalog for local dev only. In prod, a fresh Postgres DB
+// has count() == 0 on first boot, so this would seed 550 junk products
+// (fake brands, placeholder images) ahead of the real Amazon/Myntra CSV
+// import - excluded from prod so only the real catalog lands there.
+@Profile("!prod")
 @Configuration
 public class DataSeeder {
 
         @Bean
         CommandLineRunner initDatabase(ProductRepository repository) {
                 return args -> {
-                        if (repository.count() < 500) {
-                                repository.deleteAll();
+                        if (repository.count() == 0) {
 
                                 List<Product> products = new ArrayList<>();
                                 Random random = new Random();

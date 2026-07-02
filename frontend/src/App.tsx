@@ -17,6 +17,7 @@ import { Loader, Brain, ShoppingBag, Camera, Shirt } from 'lucide-react';
 const Home = lazy(() => import('./pages/Home'));
 const ProductDetails = lazy(() => import('./pages/ProductDetails'));
 const Cart = lazy(() => import('./pages/Cart'));
+const Wishlist = lazy(() => import('./pages/Wishlist'));
 
 // Loading component for lazy loaded routes
 const PageLoader = () => (
@@ -66,6 +67,9 @@ function App() {
                                     
                                     {/* Cart */}
                                     <Route path="/cart" element={<Cart />} />
+
+                                    {/* Wishlist */}
+                                    <Route path="/wishlist" element={<Wishlist />} />
                                     
                                     {/* Future routes */}
                                     <Route path="/profile" element={

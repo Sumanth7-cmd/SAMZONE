@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { productApi } from '../services/api';
 import type { Product } from '../services/api';
-import { ArrowLeft, Star, Heart, Share2 } from 'lucide-react';
+import { ArrowLeft, Star, Heart, Share2, ShoppingCart } from 'lucide-react';
+import { getProductImage, PLACEHOLDER } from '../utils/productImage';
+import { addToCart } from '../utils/cart';
+import { toggleWishlist, isWishlisted } from '../utils/wishlist';
 
 const ProductDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -13,6 +17,7 @@ const ProductDetails: React.FC = () => {
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
     const [quantity, setQuantity] = useState(1);
+    const [liked, setLiked] = useState(false);
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -22,6 +27,7 @@ const ProductDetails: React.FC = () => {
                 setLoading(true);
                 const data = await productApi.getProductById(parseInt(id));
                 setProduct(data);
+                setLiked(isWishlisted(data.id));
                 setError(null);
             } catch (err) {
                 setError('Failed to load product details. Please try again later.');
@@ -83,9 +89,14 @@ const ProductDetails: React.FC = () => {
                         <div>
                             <div className="aspect-square mb-4">
                                 <img
-                                    src={product.images?.[selectedImage] || product.image}
+                                    src={product.images?.[selectedImage] || getProductImage(product)}
                                     alt={product.name}
                                     className="w-full h-full object-cover object-center rounded-lg"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                        e.currentTarget.src = PLACEHOLDER;
+                                        e.currentTarget.onerror = null;
+                                    }}
                                 />
                             </div>
                             
@@ -119,8 +130,11 @@ const ProductDetails: React.FC = () => {
                                 <div className="flex items-center justify-between mb-2">
                                     <p className="text-sm font-medium text-indigo-600 uppercase tracking-wider">{product.category}</p>
                                     <div className="flex items-center gap-2">
-                                        <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                                            <Heart className="w-5 h-5 text-gray-400 hover:text-red-500" />
+                                        <button
+                                            onClick={() => setLiked(toggleWishlist(product.id))}
+                                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                        >
+                                            <Heart className={`w-5 h-5 ${liked ? 'text-red-500 fill-current' : 'text-gray-400'}`} />
                                         </button>
                                         <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                                             <Share2 className="w-5 h-5 text-gray-400 hover:text-gray-600" />
@@ -254,41 +268,58 @@ const ProductDetails: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Image Gallery */}
-                            <div className="grid grid-cols-4 gap-2 mb-6">
-                                {product.images?.map((image, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => setSelectedImage(index)}
-                                        className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                                            selectedImage === index 
-                                                ? 'border-indigo-600' 
-                                                : 'border-gray-200 hover:border-gray-300'
-                                        }`}
+                            <div className="flex gap-4 mt-4">
+                                <button
+                                    onClick={() =>
+                                        addToCart(
+                                            {
+                                                id: product.id,
+                                                name: product.name,
+                                                price: discountedPrice ?? product.price,
+                                                image: getProductImage(product),
+                                                size: selectedSize || product.sizes?.[0],
+                                                color: selectedColor || product.colors?.[0],
+                                                stock: product.stock,
+                                            },
+                                            quantity
+                                        )
+                                    }
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
                                 >
-                                    <img
-                                        src={image}
-                                        alt={`${product.name} ${index + 1}`}
-                                        className="w-full h-full object-cover object-center"
-                                    />
+                                    <ShoppingCart className="w-5 h-5" />
+                                    Add to Cart
                                 </button>
-                            ))}
-                        </div>
-                        <div className="flex gap-4 mt-4">
-                            <Link 
-                                to={`/try-on/${product.id}`}
-                                className="flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
-                            >
-                                Try On
-                            </Link>
-                            <button className="flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
-                                Buy Now
-                            </button>
+                                <Link
+                                    to={`/try-on?productId=${product.id}`}
+                                    className="flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                                >
+                                    Try On
+                                </Link>
+                                <button
+                                    onClick={() => {
+                                        addToCart(
+                                            {
+                                                id: product.id,
+                                                name: product.name,
+                                                price: discountedPrice ?? product.price,
+                                                image: getProductImage(product),
+                                                size: selectedSize || product.sizes?.[0],
+                                                color: selectedColor || product.colors?.[0],
+                                                stock: product.stock,
+                                            },
+                                            quantity
+                                        );
+                                        navigate('/cart');
+                                    }}
+                                    className="flex items-center justify-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                                >
+                                    Buy Now
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
         </div>
     );
 };

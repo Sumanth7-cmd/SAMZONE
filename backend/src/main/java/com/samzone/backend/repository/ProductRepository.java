@@ -34,4 +34,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT DISTINCT p.category FROM Product p")
     List<String> findAllCategories();
+
+    boolean existsByExternalId(String externalId);
+
+    boolean existsByNameIgnoreCaseAndBrandIgnoreCase(String name, String brand);
+
+    boolean existsByNameIgnoreCaseAndPrice(String name, Double price);
 }
