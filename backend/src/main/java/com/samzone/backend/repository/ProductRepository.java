@@ -44,6 +44,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT DISTINCT p.category FROM Product p")
     List<String> findAllCategories();
 
+    @Query("SELECT p.category, COUNT(p) FROM Product p GROUP BY p.category")
+    List<Object[]> countProductsByCategory();
+
     boolean existsByExternalId(String externalId);
 
     boolean existsByNameIgnoreCaseAndBrandIgnoreCase(String name, String brand);

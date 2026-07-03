@@ -21,6 +21,7 @@ const ProductDetails = lazy(() => import('./pages/ProductDetails'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Wishlist = lazy(() => import('./pages/Wishlist'));
 const Compare = lazy(() => import('./pages/Compare'));
+const Admin = lazy(() => import('./pages/Admin'));
 
 // Loading component for lazy loaded routes
 const PageLoader = () => (
@@ -77,6 +78,9 @@ function App() {
 
                                     {/* Compare */}
                                     <Route path="/compare" element={<Compare />} />
+
+                                    {/* Admin Dashboard */}
+                                    <Route path="/admin" element={<Admin />} />
 
                                     {/* Future routes */}
                                     <Route path="/profile" element={
