@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Camera, CameraOff, X, Plus, Minus, RotateCw, Shirt, Maximize2, Minimize2, Download, RefreshCw, ShoppingCart, Sparkles } from 'lucide-react';
+import { Camera, CameraOff, X, Plus, Minus, RotateCw, Shirt, Maximize2, Minimize2, Download, RefreshCw, ShoppingCart, Sparkles, Upload } from 'lucide-react';
 import { massiveProductCatalog, type Product } from '../data/massiveProductCatalog';
 import { productApi } from '../services/api';
 import { getProductImage } from '../utils/productImage';
@@ -12,13 +12,41 @@ interface OverlayItem {
     x: number;
     y: number;
     scale: number;
+    baseScale: number;
     opacity: number;
     rotation: number;
     selectedSize?: string;
 }
 
+interface Placement {
+    isPants: boolean;
+    isShoes: boolean;
+    baseScale: number;
+    x: number;
+    y: number;
+}
+
+const SIZE_SCALE_FACTOR: Record<string, number> = { S: 0.85, M: 1.0, L: 1.15, XL: 1.3 };
+
+const getPlacement = (product: Product, canvasW: number, canvasH: number): Placement => {
+    const lowerName = product.name?.toLowerCase() || '';
+    const isPants = /pant|jean|trouser|short|skirt/.test(lowerName);
+    const isShoes = product.category === 'footwear' || /shoe|boot|sandal|sneaker|slipper/.test(lowerName);
+
+    if (isPants) {
+        // Lower half of the body
+        return { isPants, isShoes, baseScale: 0.45, x: canvasW * 0.3, y: canvasH * 0.48 };
+    }
+    if (isShoes) {
+        // Near the bottom of the frame
+        return { isPants, isShoes, baseScale: 0.25, x: canvasW * 0.35, y: canvasH * 0.82 };
+    }
+    // Default: shirt/top on the upper torso
+    return { isPants, isShoes, baseScale: 0.45, x: canvasW * 0.28, y: canvasH * 0.20 };
+};
+
 const HOW_IT_WORKS_STEPS = [
-    { icon: '📸', text: 'Upload a full-body photo' },
+    { icon: '📸', text: 'Upload a full-body photo or start your webcam' },
     { icon: '👕', text: 'Select a product to try on' },
     { icon: '✨', text: 'Generate your preview' },
 ];
@@ -32,12 +60,15 @@ const FixedWebcamTryOn: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [preselectedProduct, setPreselectedProduct] = useState<Product | null>(null);
     const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
+    const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
     const preselectHandled = useRef(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const animationRef = useRef<number | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const photoImgRef = useRef<HTMLImageElement | null>(null);
 
     // Filter products for try-on
     const tryOnProducts = massiveProductCatalog.filter(p =>
@@ -53,6 +84,7 @@ const FixedWebcamTryOn: React.FC = () => {
     const startWebcam = useCallback(async () => {
         try {
             setError(null);
+            setUploadedPhoto(null);
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 640 },
@@ -65,13 +97,38 @@ const FixedWebcamTryOn: React.FC = () => {
                 videoRef.current.srcObject = stream;
                 streamRef.current = stream;
                 setIsWebcamOn(true);
-                
+
                 // Start rendering overlay
                 startOverlayRender();
             }
         } catch (err) {
             setError('Unable to access webcam. Please check permissions.');
             console.error('Webcam error:', err);
+        }
+    }, []);
+
+    const handlePhotoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            setError('Please select a valid image file');
+            return;
+        }
+
+        setError(null);
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            setUploadedPhoto(ev.target?.result as string);
+            stopWebcam();
+        };
+        reader.readAsDataURL(file);
+    }, []);
+
+    const removePhoto = useCallback(() => {
+        setUploadedPhoto(null);
+        setPreviewDataUrl(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
     }, []);
 
@@ -136,44 +193,73 @@ const FixedWebcamTryOn: React.FC = () => {
             
             animationRef.current = requestAnimationFrame(render);
         };
-        
+
         render();
     };
 
-    const addProductToOverlay = useCallback((product: Product) => {
-        const W = canvasRef.current?.width || videoRef.current?.videoWidth || 640;
-        const H = canvasRef.current?.height || videoRef.current?.videoHeight || 480;
+    const drawPhotoFrame = useCallback(() => {
+        const canvas = canvasRef.current;
+        const img = photoImgRef.current;
+        if (!canvas || !img || !img.complete) return;
 
-        const lowerName = product.name?.toLowerCase() || '';
-        const isPants = /pant|jean|trouser|short|skirt/.test(lowerName);
-        const isShoes = product.category === 'footwear' || /shoe|boot|sandal|sneaker|slipper/.test(lowerName);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
-        let x: number, y: number, scale: number;
-        if (isPants) {
-            // Lower half of the body
-            scale = 0.45;
-            x = W * 0.3;
-            y = H * 0.5;
-        } else if (isShoes) {
-            // Near the bottom of the frame
-            scale = 0.25;
-            x = W * 0.35;
-            y = H * 0.85;
-        } else {
-            // Default: shirt/top on the upper torso
-            scale = 0.45;
-            x = W * 0.28;
-            y = H * 0.15;
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        overlayItems.forEach(item => {
+            const overlayImg = new Image();
+            overlayImg.src = item.product.image;
+            overlayImg.onload = () => {
+                ctx.save();
+                ctx.globalAlpha = item.opacity;
+                ctx.translate(item.x + (overlayImg.width * item.scale) / 2, item.y + (overlayImg.height * item.scale) / 2);
+                ctx.rotate((item.rotation * Math.PI) / 180);
+                ctx.scale(item.scale, item.scale);
+                ctx.drawImage(overlayImg, -overlayImg.width / 2, -overlayImg.height / 2);
+                ctx.restore();
+            };
+        });
+    }, [overlayItems]);
+
+    // Load the uploaded photo into an offscreen Image, then draw it (+ overlays) to the canvas.
+    // Static photo mode redraws on demand instead of the webcam's continuous rAF loop.
+    useEffect(() => {
+        if (!uploadedPhoto) return;
+        const img = new Image();
+        img.onload = () => {
+            photoImgRef.current = img;
+            drawPhotoFrame();
+        };
+        img.src = uploadedPhoto;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [uploadedPhoto]);
+
+    useEffect(() => {
+        if (uploadedPhoto) {
+            drawPhotoFrame();
         }
+    }, [uploadedPhoto, overlayItems, drawPhotoFrame]);
+
+    const addProductToOverlay = useCallback((product: Product) => {
+        const W = canvasRef.current?.width || videoRef.current?.videoWidth || photoImgRef.current?.naturalWidth || 640;
+        const H = canvasRef.current?.height || videoRef.current?.videoHeight || photoImgRef.current?.naturalHeight || 480;
+
+        const placement = getPlacement(product, W, H);
 
         const newItem: OverlayItem = {
             id: `overlay_${Date.now()}`,
             product,
-            x,
-            y,
-            scale,
+            x: placement.x,
+            y: placement.y,
+            scale: placement.baseScale,
+            baseScale: placement.baseScale,
             opacity: 0.85,
-            rotation: 0
+            rotation: 0,
+            selectedSize: 'M',
         };
 
         setOverlayItems(prev => [...prev, newItem]);
@@ -198,7 +284,9 @@ const FixedWebcamTryOn: React.FC = () => {
 
     const setItemSize = useCallback((id: string, size: string) => {
         setOverlayItems(prev => prev.map(item =>
-            item.id === id ? { ...item, selectedSize: size } : item
+            item.id === id
+                ? { ...item, selectedSize: size, scale: item.baseScale * (SIZE_SCALE_FACTOR[size] ?? 1) }
+                : item
         ));
     }, []);
 
@@ -309,7 +397,14 @@ const FixedWebcamTryOn: React.FC = () => {
             <div className={videoContainerClass}>
                 {/* Left Side - Webcam */}
                 <div className="flex-1 relative bg-black">
-                    {!isWebcamOn ? (
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                    />
+                    {!isWebcamOn && !uploadedPhoto ? (
                         <div className="absolute inset-0 flex items-center justify-center overflow-y-auto py-6">
                             <div className="text-center px-4">
                                 <div className="bg-white/10 rounded-xl p-4 mb-6 max-w-sm mx-auto">
@@ -324,40 +419,63 @@ const FixedWebcamTryOn: React.FC = () => {
                                     </div>
                                 </div>
                                 <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                <p className="text-white mb-4">Start your webcam to try on products</p>
-                                <button
-                                    onClick={startWebcam}
-                                    className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 mx-auto"
-                                >
-                                    <Camera className="w-5 h-5" />
-                                    Start Webcam
-                                </button>
+                                <p className="text-white mb-4">Start your webcam or upload a photo to try on products</p>
+                                <div className="flex flex-col sm:flex-row items-center gap-3 justify-center">
+                                    <button
+                                        onClick={startWebcam}
+                                        className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                                    >
+                                        <Camera className="w-5 h-5" />
+                                        Start Webcam
+                                    </button>
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="bg-white/10 border border-white/30 text-white px-6 py-3 rounded-lg hover:bg-white/20 transition-colors flex items-center gap-2"
+                                    >
+                                        <Upload className="w-5 h-5" />
+                                        Upload Photo
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ) : (
                         <>
-                            <video
-                                ref={videoRef}
-                                autoPlay
-                                playsInline
-                                className="w-full h-full object-cover"
-                            />
+                            {isWebcamOn && (
+                                <video
+                                    ref={videoRef}
+                                    autoPlay
+                                    playsInline
+                                    className="w-full h-full object-cover"
+                                />
+                            )}
                             <canvas
                                 ref={canvasRef}
                                 className="absolute inset-0 w-full h-full object-cover"
                             />
-                            
-                            {/* Webcam Controls */}
+
+                            {/* Controls */}
                             <div className="absolute top-4 left-4 flex gap-2">
-                                <button
-                                    onClick={stopWebcam}
-                                    className="bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors"
-                                >
-                                    <CameraOff className="w-4 h-4" />
-                                </button>
+                                {isWebcamOn && (
+                                    <button
+                                        onClick={stopWebcam}
+                                        className="bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors"
+                                    >
+                                        <CameraOff className="w-4 h-4" />
+                                    </button>
+                                )}
+                                {uploadedPhoto && (
+                                    <button
+                                        onClick={removePhoto}
+                                        className="bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors"
+                                        title="Remove photo"
+                                    >
+                                        <CameraOff className="w-4 h-4" />
+                                    </button>
+                                )}
                                 <button
                                     onClick={clearAll}
                                     className="bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-700 transition-colors"
+                                    title="Clear try-on items"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
@@ -482,6 +600,14 @@ const FixedWebcamTryOn: React.FC = () => {
                                             </button>
                                         </>
                                     )}
+                                </div>
+                            )}
+
+                            {previewDataUrl && overlayItems.some(item => item.selectedSize) && (
+                                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs px-3 py-1.5 rounded-full shadow">
+                                    Based on standard sizing, size{' '}
+                                    {overlayItems.filter(item => item.selectedSize).map(item => item.selectedSize).join(', ')}{' '}
+                                    is a good starting point.
                                 </div>
                             )}
                         </>
