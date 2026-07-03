@@ -29,6 +29,7 @@ public class MyntraImportService {
 
     private static final Logger log = LoggerFactory.getLogger(MyntraImportService.class);
     private static final int BATCH_SIZE = 100;
+    private static final double INR_TO_USD = 83.0;
 
     @Autowired
     private ProductRepository productRepository;
@@ -89,7 +90,12 @@ public class MyntraImportService {
                         brand = extractBrand(name);
                     }
 
-                    Double price = parsePrice(priceRaw);
+                    // Myntra CSV prices are already in INR, but the frontend
+                    // multiplies every product's price by the USD->INR rate
+                    // for display (matching the Amazon catalog, which is in
+                    // USD). Store Myntra prices as USD too so that rule holds
+                    // for the whole catalog instead of double-converting.
+                    Double price = parsePrice(priceRaw) / INR_TO_USD;
                     boolean isDuplicate = false;
 
                     if (productId != null && !productId.isBlank()) {

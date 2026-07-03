@@ -176,18 +176,25 @@ public class AmazonImportService {
         String category = inferCategory(fileName);
         String brand = inferBrand(name);
 
-        String dedupKey = name.trim().toLowerCase(Locale.ROOT) + "|" + price;
+        // Dedup and storage must key off the same string. Previously the
+        // exists-check queried the raw, uncleaned `name` while the row was
+        // stored under cleanName(name) - any row cleanName() actually
+        // changed (collapsed whitespace, etc.) could never match on a later
+        // run, so a redeploy re-imported the entire catalog as duplicates.
+        String cleanedName = cleanName(name);
+
+        String dedupKey = cleanedName.toLowerCase(Locale.ROOT) + "|" + price;
         if (!seenInRun.add(dedupKey)) {
             return;
         }
 
-        if (productRepository.existsByNameIgnoreCaseAndPrice(name, price)) {
+        if (productRepository.existsByNameIgnoreCaseAndPrice(cleanedName, price)) {
             return;
         }
 
         Product product = new Product();
         product.setExternalId(null);
-        product.setName(cleanName(name));
+        product.setName(cleanedName);
         product.setBrand(brand);
         product.setCategory(category);
         product.setPrice(price);

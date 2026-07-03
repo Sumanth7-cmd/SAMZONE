@@ -57,9 +57,15 @@ public final class CategoryImages {
                     "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&h=400&fit=crop",
                     "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=400&fit=crop")),
             Map.entry("Accessories", List.of(
-                    "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&h=400&fit=crop")),
+                    "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&h=400&fit=crop",
+                    "https://images.unsplash.com/photo-1524498250077-390f9e378fc0?w=400&h=400&fit=crop",
+                    "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=400&h=400&fit=crop",
+                    "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=400&h=400&fit=crop")),
             Map.entry("Kids", List.of(
-                    "https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=400&h=400&fit=crop")));
+                    "https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=400&h=400&fit=crop",
+                    "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?w=400&h=400&fit=crop",
+                    "https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?w=400&h=400&fit=crop",
+                    "https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?w=400&h=400&fit=crop")));
 
     private CategoryImages() {
     }
