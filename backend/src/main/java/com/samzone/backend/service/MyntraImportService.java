@@ -80,6 +80,11 @@ public class MyntraImportService {
                     }
 
                     name = cleanName(name);
+
+                    if (!isValidProductName(name)) {
+                        skippedInvalid++;
+                        continue;
+                    }
                     if (brand == null || brand.isBlank()) {
                         brand = extractBrand(name);
                     }
@@ -193,6 +198,15 @@ public class MyntraImportService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private boolean isValidProductName(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        long asciiCount = name.chars().filter(c -> c >= 32 && c < 127).count();
+        // At least 70% of characters must be readable ASCII
+        return (double) asciiCount / name.length() >= 0.7;
     }
 
     private String cleanName(String raw) {

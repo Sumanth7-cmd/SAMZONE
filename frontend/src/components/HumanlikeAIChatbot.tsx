@@ -41,6 +41,7 @@ const HumanlikeAIChatbot: React.FC = () => {
     const [isTyping, setIsTyping] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [isMinimized, setIsMinimized] = useState(true);
+    const [lastQuery, setLastQuery] = useState('');
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<any>(null);
@@ -157,12 +158,13 @@ const HumanlikeAIChatbot: React.FC = () => {
                 ...p,
                 price: (p.price ?? 0) * USD_TO_INR_RATE,
             }));
-            let reply: string;
+            // Use the backend's own reply (varied templates, occasion/budget
+            // callouts, etc.) instead of overwriting it with a generic line.
+            let reply: string = data?.reply || (products.length > 0
+                ? `I found ${products.length} products for you! 🛍️`
+                : "I couldn't find exact matches. Here are some popular items:");
 
-            if (products.length > 0) {
-                reply = `I found ${products.length} products for you! 🛍️`;
-            } else {
-                reply = "I couldn't find exact matches. Here are some popular items:";
+            if (products.length === 0) {
                 try {
                     const popular = await productApi.getProducts(0, 12, {
                         sortBy: 'rating',
@@ -172,6 +174,10 @@ const HumanlikeAIChatbot: React.FC = () => {
                 } catch {
                     // leave products empty if the popular-items fallback also fails
                 }
+            }
+
+            if (products.length > 0) {
+                setLastQuery(text);
             }
 
             await simulateStreamingResponse(reply, products);
@@ -204,6 +210,16 @@ const HumanlikeAIChatbot: React.FC = () => {
 
     const handleQuickAction = (text: string) => {
         setInputText(text);
+    };
+
+    const FOLLOW_UP_CHIPS = ['Show more like these', 'Under ₹1000', 'Different color'];
+
+    const handleFollowUpChip = (chip: string) => {
+        const base = lastQuery || 'products';
+        const followUpText = chip === 'Show more like these'
+            ? `more ${base}`
+            : `${base} ${chip.toLowerCase()}`;
+        handleSend(followUpText);
     };
 
     return (
@@ -327,6 +343,18 @@ const HumanlikeAIChatbot: React.FC = () => {
                                                             View
                                                         </button>
                                                     </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex gap-2 mt-3 flex-wrap">
+                                                {FOLLOW_UP_CHIPS.map((chip) => (
+                                                    <button
+                                                        key={chip}
+                                                        onClick={() => handleFollowUpChip(chip)}
+                                                        disabled={isTyping}
+                                                        className="px-3 py-1 bg-white border border-purple-200 text-purple-700 rounded-full text-xs font-medium hover:bg-purple-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {chip}
+                                                    </button>
                                                 ))}
                                             </div>
                                         </div>

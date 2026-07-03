@@ -13,6 +13,8 @@ interface OverlayItem {
     y: number;
     scale: number;
     baseScale: number;
+    baseX: number;
+    baseY: number;
     opacity: number;
     rotation: number;
     selectedSize?: string;
@@ -69,6 +71,9 @@ const FixedWebcamTryOn: React.FC = () => {
     const animationRef = useRef<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const photoImgRef = useRef<HTMLImageElement | null>(null);
+    const overlayImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
+    const draggingIdRef = useRef<string | null>(null);
+    const dragOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
 
     // Filter products for try-on
     const tryOnProducts = massiveProductCatalog.filter(p =>
@@ -96,10 +101,11 @@ const FixedWebcamTryOn: React.FC = () => {
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 streamRef.current = stream;
+                // Some browsers don't reliably autoplay a freshly attached
+                // srcObject; without this the camera light turns on but the
+                // <video> element never actually starts rendering frames.
+                await videoRef.current.play();
                 setIsWebcamOn(true);
-
-                // Start rendering overlay
-                startOverlayRender();
             }
         } catch (err) {
             setError('Unable to access webcam. Please check permissions.');
@@ -150,52 +156,49 @@ const FixedWebcamTryOn: React.FC = () => {
         setIsWebcamOn(false);
     }, []);
 
-    const startOverlayRender = () => {
+    const drawOverlayItems = useCallback((ctx: CanvasRenderingContext2D) => {
+        overlayItems.forEach(item => {
+            const img = overlayImagesRef.current.get(item.id);
+            if (!img || !img.complete || img.naturalWidth === 0) return;
+
+            ctx.save();
+            ctx.globalAlpha = item.opacity;
+            ctx.translate(item.x + (img.naturalWidth * item.scale) / 2, item.y + (img.naturalHeight * item.scale) / 2);
+            ctx.rotate((item.rotation * Math.PI) / 180);
+            ctx.scale(item.scale, item.scale);
+            ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+            ctx.restore();
+        });
+    }, [overlayItems]);
+
+    // Continuously composites the live video frame + overlay items onto the
+    // canvas. Driven by an effect (not a one-off function call) so it never
+    // closes over a stale `isWebcamOn`/`overlayItems` value - each change
+    // tears down the previous rAF loop and starts a fresh one.
+    useEffect(() => {
+        if (!isWebcamOn) return;
+
+        let animId: number;
         const render = () => {
-            if (!videoRef.current || !canvasRef.current || !isWebcamOn) return;
-            
             const video = videoRef.current;
             const canvas = canvasRef.current;
-            const ctx = canvas.getContext('2d');
-            
-            if (!ctx) return;
-            
-            // Set canvas size to match video
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw video frame
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Draw overlay items
-            overlayItems.forEach(item => {
-                const img = new Image();
-                img.src = item.product.image;
-                
-                img.onload = () => {
-                    ctx.save();
-                    
-                    // Apply transformations
-                    ctx.globalAlpha = item.opacity;
-                    ctx.translate(item.x + (img.width * item.scale) / 2, item.y + (img.height * item.scale) / 2);
-                    ctx.rotate((item.rotation * Math.PI) / 180);
-                    ctx.scale(item.scale, item.scale);
-                    
-                    // Draw image centered
-                    ctx.drawImage(img, -img.width / 2, -img.height / 2);
-                    
-                    ctx.restore();
-                };
-            });
-            
-            animationRef.current = requestAnimationFrame(render);
+            if (video && canvas && video.videoWidth > 0) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    drawOverlayItems(ctx);
+                }
+            }
+            animId = requestAnimationFrame(render);
         };
 
         render();
-    };
+        animationRef.current = animId;
+        return () => cancelAnimationFrame(animId);
+    }, [isWebcamOn, drawOverlayItems]);
 
     const drawPhotoFrame = useCallback(() => {
         const canvas = canvasRef.current;
@@ -209,21 +212,8 @@ const FixedWebcamTryOn: React.FC = () => {
         canvas.height = img.naturalHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        overlayItems.forEach(item => {
-            const overlayImg = new Image();
-            overlayImg.src = item.product.image;
-            overlayImg.onload = () => {
-                ctx.save();
-                ctx.globalAlpha = item.opacity;
-                ctx.translate(item.x + (overlayImg.width * item.scale) / 2, item.y + (overlayImg.height * item.scale) / 2);
-                ctx.rotate((item.rotation * Math.PI) / 180);
-                ctx.scale(item.scale, item.scale);
-                ctx.drawImage(overlayImg, -overlayImg.width / 2, -overlayImg.height / 2);
-                ctx.restore();
-            };
-        });
-    }, [overlayItems]);
+        drawOverlayItems(ctx);
+    }, [drawOverlayItems]);
 
     // Load the uploaded photo into an offscreen Image, then draw it (+ overlays) to the canvas.
     // Static photo mode redraws on demand instead of the webcam's continuous rAF loop.
@@ -249,24 +239,37 @@ const FixedWebcamTryOn: React.FC = () => {
         const H = canvasRef.current?.height || videoRef.current?.videoHeight || photoImgRef.current?.naturalHeight || 480;
 
         const placement = getPlacement(product, W, H);
+        const id = `overlay_${Date.now()}`;
 
         const newItem: OverlayItem = {
-            id: `overlay_${Date.now()}`,
+            id,
             product,
             x: placement.x,
             y: placement.y,
             scale: placement.baseScale,
             baseScale: placement.baseScale,
+            baseX: placement.x,
+            baseY: placement.y,
             opacity: 0.85,
             rotation: 0,
             selectedSize: 'M',
         };
+
+        const img = new Image();
+        // Photo mode only redraws on-demand (no continuous rAF loop like the
+        // webcam), so if this image is still loading when the next draw
+        // happens, force a re-render once it's ready so the effect re-runs
+        // with fresh state instead of silently never showing this item.
+        img.onload = () => setOverlayItems(prev => [...prev]);
+        img.src = product.image;
+        overlayImagesRef.current.set(id, img);
 
         setOverlayItems(prev => [...prev, newItem]);
         setSelectedProducts(prev => [...prev, product]);
     }, []);
 
     const removeOverlayItem = useCallback((id: string) => {
+        overlayImagesRef.current.delete(id);
         setOverlayItems(prev => prev.filter(item => item.id !== id));
     }, []);
 
@@ -277,9 +280,16 @@ const FixedWebcamTryOn: React.FC = () => {
     }, []);
 
     const clearAll = useCallback(() => {
+        overlayImagesRef.current.clear();
         setOverlayItems([]);
         setSelectedProducts([]);
         setPreviewDataUrl(null);
+    }, []);
+
+    const resetItemPosition = useCallback((id: string) => {
+        setOverlayItems(prev => prev.map(item =>
+            item.id === id ? { ...item, x: item.baseX, y: item.baseY } : item
+        ));
     }, []);
 
     const setItemSize = useCallback((id: string, size: string) => {
@@ -288,6 +298,58 @@ const FixedWebcamTryOn: React.FC = () => {
                 ? { ...item, selectedSize: size, scale: item.baseScale * (SIZE_SCALE_FACTOR[size] ?? 1) }
                 : item
         ));
+    }, []);
+
+    // Maps a pointer event's screen position to canvas-pixel coordinates,
+    // accounting for the canvas being CSS-scaled to fill its container.
+    const canvasPointFromEvent = useCallback((clientX: number, clientY: number) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return null;
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return null;
+        return {
+            x: (clientX - rect.left) * (canvas.width / rect.width),
+            y: (clientY - rect.top) * (canvas.height / rect.height),
+        };
+    }, []);
+
+    const findItemAt = useCallback((x: number, y: number): OverlayItem | null => {
+        for (let i = overlayItems.length - 1; i >= 0; i--) {
+            const item = overlayItems[i];
+            const img = overlayImagesRef.current.get(item.id);
+            const w = (img?.naturalWidth || 200) * item.scale;
+            const h = (img?.naturalHeight || 200) * item.scale;
+            if (x >= item.x && x <= item.x + w && y >= item.y && y <= item.y + h) {
+                return item;
+            }
+        }
+        return null;
+    }, [overlayItems]);
+
+    const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        const point = canvasPointFromEvent(e.clientX, e.clientY);
+        if (!point) return;
+        const hit = findItemAt(point.x, point.y);
+        if (hit) {
+            draggingIdRef.current = hit.id;
+            dragOffsetRef.current = { dx: point.x - hit.x, dy: point.y - hit.y };
+            e.currentTarget.setPointerCapture(e.pointerId);
+        }
+    }, [canvasPointFromEvent, findItemAt]);
+
+    const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        const id = draggingIdRef.current;
+        if (!id) return;
+        const point = canvasPointFromEvent(e.clientX, e.clientY);
+        if (!point) return;
+        updateOverlayItem(id, {
+            x: point.x - dragOffsetRef.current.dx,
+            y: point.y - dragOffsetRef.current.dy,
+        });
+    }, [canvasPointFromEvent, updateOverlayItem]);
+
+    const handlePointerUp = useCallback(() => {
+        draggingIdRef.current = null;
     }, []);
 
     const generatePreview = useCallback(() => {
@@ -396,7 +458,14 @@ const FixedWebcamTryOn: React.FC = () => {
             {/* Main Content */}
             <div className={videoContainerClass}>
                 {/* Left Side - Webcam */}
-                <div className="flex-1 relative bg-black">
+                <div
+                    className="flex-1 relative bg-black"
+                    style={{ touchAction: overlayItems.length > 0 ? 'none' : 'auto' }}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                >
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -445,6 +514,7 @@ const FixedWebcamTryOn: React.FC = () => {
                                     ref={videoRef}
                                     autoPlay
                                     playsInline
+                                    muted
                                     className="w-full h-full object-cover"
                                 />
                             )}
@@ -487,17 +557,24 @@ const FixedWebcamTryOn: React.FC = () => {
                                     <div className="flex items-center gap-2 text-sm">
                                         <span className="font-medium">{item.product.name}</span>
                                         <button
+                                            onClick={() => resetItemPosition(item.id)}
+                                            className="text-gray-500 hover:text-gray-700"
+                                            title="Reset position"
+                                        >
+                                            <RefreshCw className="w-3 h-3" />
+                                        </button>
+                                        <button
                                             onClick={() => removeOverlayItem(item.id)}
                                             className="text-red-600 hover:text-red-700"
                                         >
                                             <X className="w-3 h-3" />
                                         </button>
                                     </div>
-                                    
+
                                     {/* Size Control */}
                                     <div className="flex items-center gap-2 mt-2">
                                         <button
-                                            onClick={() => updateOverlayItem(item.id, { scale: Math.max(0.3, item.scale - 0.1) })}
+                                            onClick={() => updateOverlayItem(item.id, { scale: Math.max(0.2, item.scale - 0.1) })}
                                             className="p-1 bg-gray-200 rounded hover:bg-gray-300"
                                         >
                                             <Minus className="w-3 h-3" />
@@ -510,7 +587,17 @@ const FixedWebcamTryOn: React.FC = () => {
                                             <Plus className="w-3 h-3" />
                                         </button>
                                     </div>
-                                    
+                                    <input
+                                        type="range"
+                                        min={0.2}
+                                        max={0.8}
+                                        step={0.02}
+                                        value={Math.min(0.8, Math.max(0.2, item.scale))}
+                                        onChange={(e) => updateOverlayItem(item.id, { scale: parseFloat(e.target.value) })}
+                                        className="w-full mt-2"
+                                        title="Resize"
+                                    />
+
                                     {/* Opacity Control */}
                                     <div className="flex items-center gap-2 mt-2">
                                         <button
@@ -564,6 +651,12 @@ const FixedWebcamTryOn: React.FC = () => {
                                     )}
                                 </div>
                             ))}
+
+                            {overlayItems.length > 0 && !previewDataUrl && (
+                                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full shadow max-w-[90%] text-center">
+                                    Drag the clothing to position it on your body. Use the slider to resize.
+                                </div>
+                            )}
 
                             {overlayItems.length > 0 && (
                                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap gap-2 justify-center px-4">

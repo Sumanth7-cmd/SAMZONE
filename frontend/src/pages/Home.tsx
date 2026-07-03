@@ -49,6 +49,29 @@ const Home: React.FC = () => {
                 </div>
             </section>
 
+            {/* Skin Guide Banner */}
+            <section className="py-12 bg-gradient-to-r from-purple-600 to-pink-500">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+                        <div>
+                            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                                ✨ Find Your Perfect Colors
+                            </h2>
+                            <p className="text-purple-100 text-lg">
+                                Upload a photo and discover which colors suit your skin tone
+                            </p>
+                        </div>
+                        <Link
+                            to="/skin-tone"
+                            className="inline-flex items-center px-8 py-3 bg-white text-purple-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-300 whitespace-nowrap"
+                        >
+                            Try Skin Guide
+                            <ArrowRight className="ml-2 h-5 w-5" />
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
             {/* Features Section */}
             <section className="py-16 bg-gray-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

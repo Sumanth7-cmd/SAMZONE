@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -99,6 +100,45 @@ public class ChatService {
 
     private static final double INR_TO_USD = 83.0;
 
+    private static final String[] REPLY_TEMPLATES = {
+            "Here are %d great picks for you! 🛍️",
+            "Found %d options you might love! ✨",
+            "Check out these %d products! 👇",
+            "I picked %d items matching your style! 🎯",
+    };
+
+    private static final Map<String, String> OCCASION_REPLY = Map.of(
+            "wedding", "Perfect for a wedding! Here are my picks: 💍",
+            "college", "Great college looks coming up! 🎒",
+            "office", "Sharp office looks, coming right up! 💼",
+            "party", "Party-ready picks incoming! 🎉",
+            "festival", "Festive picks for the occasion! 🪔",
+            "travel", "Comfy travel-ready picks! ✈️");
+
+    private static final String NO_MATCH_REPLY =
+            "I couldn't find exactly that, but here are similar items. Try being more specific "
+                    + "— like 'blue formal shirt' or 'running shoes under 3000'.";
+
+    private final Random random = new Random();
+
+    private String buildReply(String lower, List<Product> products, Double[] priceRange) {
+        if (products.isEmpty()) {
+            return NO_MATCH_REPLY;
+        }
+
+        String occasionKey = OCCASION_MAP.keySet().stream().filter(lower::contains).findFirst().orElse(null);
+        String reply = occasionKey != null && OCCASION_REPLY.containsKey(occasionKey)
+                ? OCCASION_REPLY.get(occasionKey)
+                : String.format(REPLY_TEMPLATES[random.nextInt(REPLY_TEMPLATES.length)], products.size());
+
+        if (priceRange != null && priceRange[1] != null) {
+            long budgetInr = Math.round(priceRange[1] * INR_TO_USD);
+            reply += " All within your ₹" + budgetInr + " budget! 💰";
+        }
+
+        return reply;
+    }
+
     public ChatResponse chat(String message) {
         if (message == null || message.isBlank()) {
             return ChatResponse.builder()
@@ -134,10 +174,7 @@ public class ChatService {
         }
 
         List<Product> products = findRelevantProducts(message, intent);
-
-        String reply = products.isEmpty()
-                ? "I couldn't find an exact match, but feel free to describe what you're looking for differently!"
-                : "Here are some products for you!";
+        String reply = buildReply(lower, products, extractPriceRange(lower));
 
         return ChatResponse.builder()
                 .reply(reply)

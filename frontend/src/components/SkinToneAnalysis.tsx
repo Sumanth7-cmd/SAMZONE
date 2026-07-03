@@ -15,6 +15,7 @@ interface SkinToneResult {
     confidence: number;
     colorPalette: string[];
     suitableColorNames: string[];
+    colorsToAvoid: string[];
 }
 
 const COLOR_HEX_MAP: Record<string, string> = {
@@ -33,6 +34,23 @@ const COLOR_HEX_MAP: Record<string, string> = {
     'royal blue': '#4169E1',
     'hot pink': '#FF69B4',
     emerald: '#50C878',
+    orange: '#FFA500',
+    camel: '#C19A6B',
+    beige: '#F5F5DC',
+    olive: '#808000',
+    'silver grey': '#C0C0C0',
+    'icy blue': '#AFDBF5',
+    'cool pink': '#F49AC2',
+    'yellow-green': '#9ACD32',
+    'pure black': '#000000',
+    'neon yellow': '#DFFF00',
+    'dusty rose': '#DCAE96',
+    'muted pastels': '#D8D2C2',
+    'washed-out pastels': '#E8E4DA',
+    'neon colors': '#39FF14',
+    'icy pastels': '#E0F7FA',
+    'orange-brown': '#A0522D',
+    'neon shades': '#39FF14',
 };
 
 function colorToHex(colorName: string): string {
@@ -56,6 +74,29 @@ const SUITABLE_COLOR_NAMES: Record<'light' | 'medium' | 'dark', Record<'warm' | 
         neutral: ['White', 'Black', 'Hot Pink', 'Forest Green'],
     },
 };
+
+const AVOID_MAP: Record<string, string[]> = {
+    'Light-Warm': ['Neon colors', 'Icy Pastels', 'Pure Black'],
+    'Light-Cool': ['Orange', 'Mustard', 'Camel'],
+    'Light-Neutral': ['Neon Yellow', 'Hot Pink'],
+    'Medium-Warm': ['Icy Blue', 'Cool Pink', 'Silver Grey'],
+    'Medium-Cool': ['Orange', 'Yellow-Green', 'Gold'],
+    'Medium-Neutral': ['Neon shades'],
+    'Deep-Warm': ['Muted Pastels', 'Dusty Rose', 'Beige'],
+    'Deep-Cool': ['Orange-Brown', 'Olive', 'Camel'],
+    'Deep-Neutral': ['Washed-out Pastels'],
+};
+
+const TONE_LABEL: Record<'light' | 'medium' | 'dark', string> = {
+    light: 'Light',
+    medium: 'Medium',
+    dark: 'Deep',
+};
+
+function getColorsToAvoid(tone: 'light' | 'medium' | 'dark', undertone: 'warm' | 'cool' | 'neutral'): string[] {
+    const key = `${TONE_LABEL[tone]}-${undertone.charAt(0).toUpperCase()}${undertone.slice(1)}`;
+    return AVOID_MAP[key] ?? [];
+}
 
 const SkinToneAnalysis: React.FC = () => {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -300,7 +341,8 @@ const SkinToneAnalysis: React.FC = () => {
             recommendations,
             confidence: 0.85 + Math.random() * 0.1,
             colorPalette,
-            suitableColorNames: SUITABLE_COLOR_NAMES[tone][undertone]
+            suitableColorNames: SUITABLE_COLOR_NAMES[tone][undertone],
+            colorsToAvoid: getColorsToAvoid(tone, undertone)
         };
     };
 
@@ -537,9 +579,9 @@ const SkinToneAnalysis: React.FC = () => {
                                     </div>
                                 </div>
                                 
-                                {/* Color Recommendations */}
-                                <div>
-                                    <h3 className="font-semibold text-gray-900 mb-3">Color Recommendations</h3>
+                                {/* Colors That Suit You */}
+                                <div className="border-2 border-green-500 bg-green-50/50 rounded-xl p-4">
+                                    <h3 className="font-semibold text-green-800 mb-3">✅ Colors That Suit You</h3>
                                     <div className="flex flex-wrap gap-3 mb-4">
                                         {analysisResult.suitableColorNames.map((colorName) => (
                                             <div key={colorName} className="flex flex-col items-center gap-1">
@@ -554,14 +596,33 @@ const SkinToneAnalysis: React.FC = () => {
                                     </div>
                                     <div className="space-y-2">
                                         {analysisResult.recommendations.map((rec, index) => (
-                                            <div key={index} className="flex items-center gap-2 p-2 bg-green-50 rounded-lg">
-                                                <CheckCircle className="w-4 h-4 text-green-600" />
+                                            <div key={index} className="flex items-center gap-2 p-2 bg-green-100/60 rounded-lg">
+                                                <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                                                 <span className="text-sm text-gray-700">{rec}</span>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
-                                
+
+                                {/* Colors To Avoid */}
+                                {analysisResult.colorsToAvoid.length > 0 && (
+                                    <div className="border-2 border-red-400 bg-red-50/50 rounded-xl p-4">
+                                        <h3 className="font-semibold text-red-800 mb-3">❌ Colors To Avoid</h3>
+                                        <div className="flex flex-wrap gap-3">
+                                            {analysisResult.colorsToAvoid.map((colorName) => (
+                                                <div key={colorName} className="flex flex-col items-center gap-1">
+                                                    <div
+                                                        style={{ backgroundColor: colorToHex(colorName) }}
+                                                        className="w-8 h-8 rounded-full border-2 border-white shadow-sm ring-1 ring-red-200 opacity-80"
+                                                        title={colorName}
+                                                    />
+                                                    <span className="text-xs text-gray-600 text-center max-w-[70px]">{colorName}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Product Recommendations */}
                                 <div>
                                     <h3 className="font-semibold text-gray-900 mb-1">

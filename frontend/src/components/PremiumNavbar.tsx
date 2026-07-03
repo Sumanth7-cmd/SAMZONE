@@ -163,6 +163,14 @@ const PremiumNavbar: React.FC = () => {
                                         {category.name}
                                     </Link>
                                 ))}
+
+                                <Link
+                                    to="/skin-tone"
+                                    className="flex items-center gap-1 text-purple-700 font-medium hover:text-purple-900 transition-colors py-2"
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                    Skin Guide
+                                </Link>
                             </div>
                         </div>
 
@@ -267,6 +275,14 @@ const PremiumNavbar: React.FC = () => {
                 <div className="lg:hidden bg-white border-t border-gray-200">
                     <div className="px-4 py-4">
                         <div className="space-y-4">
+                            <Link
+                                to="/skin-tone"
+                                className="flex items-center gap-2 font-medium text-purple-700 py-2"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                Skin Guide
+                            </Link>
                             {categories.map((category) => (
                                 <div key={category.name}>
                                     <Link
