@@ -6,6 +6,7 @@ import { ArrowLeft, Star, Heart, Share2, ShoppingCart } from 'lucide-react';
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
 import { toggleWishlist, isWishlisted } from '../utils/wishlist';
+import { recordViewedProduct } from '../services/recommendationService';
 
 const ProductDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -18,6 +19,7 @@ const ProductDetails: React.FC = () => {
     const [selectedColor, setSelectedColor] = useState('');
     const [quantity, setQuantity] = useState(1);
     const [liked, setLiked] = useState(false);
+    const [showSizeGuide, setShowSizeGuide] = useState(false);
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -29,6 +31,7 @@ const ProductDetails: React.FC = () => {
                 setProduct(data);
                 setLiked(isWishlisted(data.id));
                 setError(null);
+                recordViewedProduct(data);
             } catch (err) {
                 setError('Failed to load product details. Please try again later.');
                 console.error('Error fetching product:', err);
@@ -184,7 +187,15 @@ const ProductDetails: React.FC = () => {
                             {/* Size Selector */}
                             {product.sizes && product.sizes.length > 0 && (
                                 <div className="mb-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Size</h3>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h3 className="text-lg font-semibold text-gray-900">Size</h3>
+                                        <button
+                                            onClick={() => setShowSizeGuide(true)}
+                                            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium underline"
+                                        >
+                                            Size Guide
+                                        </button>
+                                    </div>
                                     <div className="flex flex-wrap gap-2">
                                         {product.sizes.map((size) => (
                                             <button
@@ -199,6 +210,58 @@ const ProductDetails: React.FC = () => {
                                                 {size}
                                             </button>
                                         ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {showSizeGuide && (
+                                <div
+                                    className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+                                    onClick={() => setShowSizeGuide(false)}
+                                >
+                                    <div
+                                        className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-xl font-bold text-gray-900">Size Guide</h3>
+                                            <button
+                                                onClick={() => setShowSizeGuide(false)}
+                                                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                                            >
+                                                &times;
+                                            </button>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm text-left">
+                                                <thead>
+                                                    <tr className="border-b border-gray-200 text-gray-500">
+                                                        <th className="py-2 pr-4">Size</th>
+                                                        <th className="py-2 pr-4">Chest (in)</th>
+                                                        <th className="py-2 pr-4">Waist (in)</th>
+                                                        <th className="py-2">Fits height</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {[
+                                                        ['S', '36-38', '30-32', "5'4\"-5'7\""],
+                                                        ['M', '38-40', '32-34', "5'7\"-5'10\""],
+                                                        ['L', '40-42', '34-36', "5'9\"-6'0\""],
+                                                        ['XL', '42-44', '36-38', "5'11\"-6'2\""],
+                                                    ].map(([size, chest, waist, height]) => (
+                                                        <tr key={size} className="border-b border-gray-100 last:border-b-0">
+                                                            <td className="py-2 pr-4 font-semibold text-gray-900">{size}</td>
+                                                            <td className="py-2 pr-4 text-gray-600">{chest}</td>
+                                                            <td className="py-2 pr-4 text-gray-600">{waist}</td>
+                                                            <td className="py-2 text-gray-600">{height}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-4">
+                                            Tip: Between sizes? We recommend sizing up for a relaxed fit.
+                                        </p>
                                     </div>
                                 </div>
                             )}

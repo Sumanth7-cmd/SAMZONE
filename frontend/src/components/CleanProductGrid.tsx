@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, Eye, Sparkles, Filter, Search, TrendingUp } from 'lucide-react';
+import { Heart, ShoppingCart, Star, Eye, Sparkles, Filter, Search, TrendingUp, Scale } from 'lucide-react';
 import { productApi, type Product } from '../services/api';
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
 import { toggleWishlist, isWishlisted } from '../utils/wishlist';
+import { useCompare } from '../context/CompareContext';
 
 const PAGE_SIZE = 50;
 
@@ -138,8 +139,11 @@ const CleanProductGrid: React.FC = () => {
         return result;
     };
 
+    const { toggleCompare, isComparing, canAddMore, maxCompare } = useCompare();
+
     const ProductCard = ({ product }: { product: Product }) => {
         const isLiked = likedIds.has(product.id) || isWishlisted(product.id);
+        const comparing = isComparing(product.id);
         const discountedPrice = product.discount
             ? product.price * (1 - product.discount / 100)
             : product.price;
@@ -188,6 +192,23 @@ const CleanProductGrid: React.FC = () => {
                             -{Math.round(product.discount)}%
                         </div>
                     )}
+
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toggleCompare(product);
+                        }}
+                        disabled={!comparing && !canAddMore}
+                        title={!comparing && !canAddMore ? `You can compare up to ${maxCompare} products` : 'Add to compare'}
+                        className={`absolute bottom-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow transition-colors ${
+                            comparing
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-white/90 text-gray-700 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed'
+                        }`}
+                    >
+                        <Scale className="w-3 h-3" />
+                        Compare
+                    </button>
 
                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
                         <Star className="w-3 h-3 text-yellow-500 fill-current" />

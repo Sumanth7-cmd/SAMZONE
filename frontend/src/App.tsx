@@ -11,6 +11,8 @@ import SimpleTryOnInteraction from './components/SimpleTryOnInteraction';
 import SkinToneAnalysis from './components/SkinToneAnalysis';
 import ComprehensiveErrorBoundary from './components/ComprehensiveErrorBoundary';
 import SimpleLogin from './components/SimpleLogin';
+import CompareFloatingButton from './components/CompareFloatingButton';
+import { CompareProvider } from './context/CompareContext';
 import { Loader, Brain, ShoppingBag, Camera, Shirt } from 'lucide-react';
 
 // Lazy load pages for better performance
@@ -18,6 +20,7 @@ const Home = lazy(() => import('./pages/Home'));
 const ProductDetails = lazy(() => import('./pages/ProductDetails'));
 const Cart = lazy(() => import('./pages/Cart'));
 const Wishlist = lazy(() => import('./pages/Wishlist'));
+const Compare = lazy(() => import('./pages/Compare'));
 
 // Loading component for lazy loaded routes
 const PageLoader = () => (
@@ -32,45 +35,49 @@ const PageLoader = () => (
 function App() {
     return (
         <ComprehensiveErrorBoundary>
+            <CompareProvider>
             <Router>
                 <div className="flex flex-col min-h-screen">
                     {/* Premium Navigation */}
                     <PremiumNavbar />
-                    
+
                     <main className="flex-grow">
                         <ErrorBoundary>
                             <Suspense fallback={<PageLoader />}>
                                 <Routes>
                                     {/* Home */}
                                     <Route path="/" element={<Home />} />
-                                    
+
                                     {/* Shop with Clean Product Grid */}
                                     <Route path="/shop" element={<CleanProductGrid />} />
-                                    
+
                                     {/* Working Image Upload */}
                                     <Route path="/upload" element={<WorkingImageUpload />} />
-                                    
+
                                     {/* Skin Tone Analysis */}
                                     <Route path="/skin-tone" element={<SkinToneAnalysis />} />
-                                    
+
                                     {/* Login/Register */}
                                     <Route path="/login" element={<SimpleLogin />} />
-                                    
+
                                     {/* Product Details */}
                                     <Route path="/product/:id" element={<ProductDetails />} />
-                                    
+
                                     {/* Enhanced Try-On Studio */}
                                     <Route path="/try-on" element={<FixedWebcamTryOn />} />
-                                    
+
                                     {/* Simple Try-On Interaction */}
                                     <Route path="/try-on-interaction" element={<SimpleTryOnInteraction />} />
-                                    
+
                                     {/* Cart */}
                                     <Route path="/cart" element={<Cart />} />
 
                                     {/* Wishlist */}
                                     <Route path="/wishlist" element={<Wishlist />} />
-                                    
+
+                                    {/* Compare */}
+                                    <Route path="/compare" element={<Compare />} />
+
                                     {/* Future routes */}
                                     <Route path="/profile" element={
                                         <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -107,11 +114,15 @@ function App() {
                     
                     {/* Premium Footer */}
                     <PremiumFooter />
-                    
+
                     {/* Humanlike SAM AI Assistant - Always Available */}
                     <HumanlikeAIChatbot />
+
+                    {/* Floating "Compare (N)" button */}
+                    <CompareFloatingButton />
                 </div>
             </Router>
+            </CompareProvider>
         </ComprehensiveErrorBoundary>
     );
 };

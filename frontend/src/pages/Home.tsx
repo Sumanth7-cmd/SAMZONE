@@ -1,8 +1,22 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles, ShoppingBag, Zap } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Sparkles, ShoppingBag, Zap, Star } from 'lucide-react';
+import { getRecommendations } from '../services/recommendationService';
+import type { Product } from '../services/api';
+import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 
 const Home: React.FC = () => {
+    const navigate = useNavigate();
+    const [recommendations, setRecommendations] = useState<Product[]>([]);
+    const [loadingRecs, setLoadingRecs] = useState(true);
+
+    useEffect(() => {
+        getRecommendations(8)
+            .then(setRecommendations)
+            .catch(() => setRecommendations([]))
+            .finally(() => setLoadingRecs(false));
+    }, []);
+
     return (
         <div className="min-h-screen">
             {/* Hero Section */}
@@ -72,6 +86,62 @@ const Home: React.FC = () => {
                     </div>
                 </div>
             </section>
+
+            {/* Recommended For You */}
+            {(loadingRecs || recommendations.length > 0) && (
+                <section className="py-16 bg-white">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
+                            Recommended For You
+                        </h2>
+                        {loadingRecs ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                                {Array.from({ length: 8 }).map((_, i) => (
+                                    <div key={i} className="bg-gray-200 animate-pulse rounded-xl h-64" />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                                {recommendations.map((product) => (
+                                    <div
+                                        key={product.id}
+                                        onClick={() => navigate(`/product/${product.id}`)}
+                                        className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-shadow border border-gray-100 overflow-hidden cursor-pointer flex flex-col"
+                                    >
+                                        <img
+                                            src={getProductImage(product)}
+                                            alt={product.name}
+                                            className="w-full h-48 object-cover"
+                                            loading="lazy"
+                                            onError={(e) => {
+                                                e.currentTarget.src = PLACEHOLDER;
+                                                e.currentTarget.onerror = null;
+                                            }}
+                                        />
+                                        <div className="p-4 flex flex-col flex-1">
+                                            <p className="text-xs text-gray-500 uppercase mb-1 truncate">{product.brand}</p>
+                                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-2 min-h-[2.5rem]">
+                                                {product.name}
+                                            </h3>
+                                            <div className="flex items-center justify-between mt-auto">
+                                                <span className="text-lg font-bold text-gray-900">
+                                                    ₹{product.price.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                                </span>
+                                                {product.rating && (
+                                                    <span className="flex items-center gap-1 text-xs text-gray-600">
+                                                        <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                                                        {product.rating.toFixed(1)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
 
             {/* CTA Section */}
             <section className="py-16 bg-indigo-600 text-white">

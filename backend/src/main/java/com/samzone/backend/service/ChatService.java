@@ -58,6 +58,9 @@ public class ChatService {
     private static final String GREETING_REPLY =
             "Hello! I'm S.A.M., your Smart Assistant for Modern Shopping. How can I help you today?";
 
+    private static final Set<String> OUTFIT_KEYWORDS = Set.of(
+            "outfit", "complete look", "what to wear");
+
     private static final Set<String> ADVICE_KEYWORDS = Set.of(
             "what should i wear", "styling tip", "style tip", "goes with", "what goes with",
             "how to style", "what matches", "matching colors", "matching color",
@@ -117,6 +120,10 @@ public class ChatService {
             return buildAdviceResponse(lower);
         }
 
+        if (OUTFIT_KEYWORDS.stream().anyMatch(lower::contains)) {
+            return buildOutfitResponse(lower);
+        }
+
         ChatIntent intent = extractIntent(message);
         if (intent != null && "advice".equalsIgnoreCase(intent.intent) && intent.reply != null && !intent.reply.isBlank()) {
             List<Product> products = findRelevantProducts(message, intent);
@@ -174,6 +181,64 @@ public class ChatService {
                 .products(products.stream().distinct().limit(6).collect(Collectors.toList()))
                 .success(true)
                 .build();
+    }
+
+    private ChatResponse buildOutfitResponse(String lower) {
+        Double[] priceRange = extractPriceRange(lower);
+        Double minPrice = priceRange[0];
+        Double maxPrice = priceRange[1];
+
+        boolean isWomens = WOMEN_FASHION_KEYWORDS.stream().anyMatch(lower::contains);
+        String clothingCategory = isWomens ? "Women's Clothing" : "Men's Clothing";
+
+        String occasionKey = OCCASION_MAP.keySet().stream().filter(lower::contains).findFirst().orElse(null);
+        List<String> topTerms = occasionKey != null
+                ? OCCASION_MAP.get(occasionKey)
+                : List.of("shirt", "t-shirt", "kurta");
+
+        Pageable twoResults = PageRequest.of(0, 2, Sort.by("rating").descending());
+
+        List<Product> tops = findFirstNonEmptyByTerms(clothingCategory, topTerms, minPrice, maxPrice, twoResults);
+        if (tops.isEmpty()) {
+            tops = productRepository
+                    .findByFilters(clothingCategory, null, null, minPrice, maxPrice, null, twoResults).getContent();
+        }
+
+        List<String> bottomTerms = List.of("pant", "jean", "trouser");
+        List<Product> bottoms = findFirstNonEmptyByTerms(clothingCategory, bottomTerms, minPrice, maxPrice, twoResults);
+        if (bottoms.isEmpty()) {
+            bottoms = findFirstNonEmptyByTerms(clothingCategory, bottomTerms, null, null, twoResults);
+        }
+
+        List<Product> shoes = productRepository
+                .findByFilters("Men's Footwear", null, null, minPrice, maxPrice, null, twoResults).getContent();
+        if (shoes.isEmpty()) {
+            shoes = productRepository
+                    .findByFilters("Men's Footwear", null, null, null, null, null, twoResults).getContent();
+        }
+
+        List<Product> outfit = new ArrayList<>();
+        outfit.addAll(tops);
+        outfit.addAll(bottoms);
+        outfit.addAll(shoes);
+
+        return ChatResponse.builder()
+                .reply("Here's a complete outfit for you! 👕 Top, 👖 Bottom, 👟 Shoes")
+                .products(outfit)
+                .success(true)
+                .build();
+    }
+
+    private List<Product> findFirstNonEmptyByTerms(String category, List<String> terms, Double minPrice,
+            Double maxPrice, Pageable pageable) {
+        for (String term : terms) {
+            List<Product> matches = productRepository
+                    .findByFilters(category, null, term, minPrice, maxPrice, null, pageable).getContent();
+            if (!matches.isEmpty()) {
+                return matches;
+            }
+        }
+        return List.of();
     }
 
     private String capitalize(String s) {
