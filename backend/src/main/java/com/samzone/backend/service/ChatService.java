@@ -40,6 +40,13 @@ public class ChatService {
             "show", "me", "find", "search", "for", "some", "a", "an", "the", "i",
             "want", "need", "please", "can", "you", "get", "give", "looking", "is", "of");
 
+    private static final Set<String> FASHION_KEYWORDS = Set.of(
+            "shirt", "pant", "kurta", "dress", "saree", "jeans", "top", "blouse",
+            "outfit", "wear", "clothing", "fashion", "ethnic", "formal", "casual", "party");
+
+    private static final Set<String> WOMEN_FASHION_KEYWORDS = Set.of(
+            "dress", "saree", "blouse", "kurti", "women", "womens", "women's", "skirt", "gown");
+
     public ChatResponse chat(String message) {
         if (message == null || message.isBlank()) {
             return ChatResponse.builder()
@@ -119,6 +126,9 @@ public class ChatService {
                 "Extract shopping intent from the user message and return ONLY a raw JSON object with these " +
                 "keys (omit any you cannot determine): category, brand, keyword, minPrice, maxPrice. " +
                 "Prices in the database are in USD. Convert rupee amounts by dividing by 83. " +
+                "Available categories in database: Laptops, Mobiles, Men's Clothing, Men's Footwear, " +
+                "Cameras, Car Accessories, Toys, Movies, Audio & Video, Women's Clothing, Accessories, Kids. " +
+                "Always map user requests to the closest matching category. " +
                 "No markdown, no explanation, just the JSON.";
     }
 
@@ -155,6 +165,16 @@ public class ChatService {
             }
         }
 
+        String lowerMessage = message.toLowerCase();
+        if (results != null && !results.isEmpty()
+                && FASHION_KEYWORDS.stream().anyMatch(lowerMessage::contains)
+                && results.stream().noneMatch(this::isFashionCategoryProduct)) {
+            List<Product> fashionResults = findFashionCategoryProducts(lowerMessage);
+            if (!fashionResults.isEmpty()) {
+                results = fashionResults;
+            }
+        }
+
         if (results == null || results.isEmpty()) {
             results = findRelevantProductsFallback(message);
         }
@@ -175,6 +195,13 @@ public class ChatService {
                 if (!byCategory.isEmpty()) {
                     return byCategory;
                 }
+            }
+        }
+
+        if (FASHION_KEYWORDS.stream().anyMatch(lower::contains)) {
+            List<Product> fashionResults = findFashionCategoryProducts(lower);
+            if (!fashionResults.isEmpty()) {
+                return fashionResults;
             }
         }
 
@@ -201,6 +228,31 @@ public class ChatService {
             }
         }
 
+        return results;
+    }
+
+    private boolean isFashionCategoryProduct(Product product) {
+        String category = product.getCategory();
+        return category != null
+                && (category.equals("Men's Clothing")
+                        || category.equals("Women's Clothing")
+                        || category.equals("Accessories"));
+    }
+
+    private List<Product> findFashionCategoryProducts(String lower) {
+        Pageable pageable = PageRequest.of(0, 6, Sort.by("rating").descending());
+        boolean isWomens = WOMEN_FASHION_KEYWORDS.stream().anyMatch(lower::contains);
+
+        String primaryCategory = isWomens ? "Women's Clothing" : "Men's Clothing";
+        String secondaryCategory = isWomens ? "Men's Clothing" : "Women's Clothing";
+
+        List<Product> results = productRepository.findByCategory(primaryCategory, pageable).getContent();
+        if (results.isEmpty()) {
+            results = productRepository.findByCategory(secondaryCategory, pageable).getContent();
+        }
+        if (results.isEmpty()) {
+            results = productRepository.findByCategory("Accessories", pageable).getContent();
+        }
         return results;
     }
 
