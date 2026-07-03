@@ -148,7 +148,7 @@ const ProductDetails: React.FC = () => {
                                 <p className="text-lg text-gray-600 mb-4">{product.brand}</p>
                                 
                                 {/* Rating */}
-                                {product.rating && (
+                                {(product.rating ?? 0) > 0 && (
                                     <div className="flex items-center mb-4">
                                         <div className="flex items-center">
                                             {[...Array(5)].map((_, i) => (
@@ -171,7 +171,7 @@ const ProductDetails: React.FC = () => {
                                     <span className="text-4xl font-bold text-gray-900">
                                         ₹{discountedPrice?.toLocaleString()}
                                     </span>
-                                    {product.discount && product.discount > 0 && (
+                                    {(product.discount ?? 0) > 0 && (
                                         <>
                                             <span className="text-2xl text-gray-500 line-through">
                                                 ₹{product.price.toLocaleString()}

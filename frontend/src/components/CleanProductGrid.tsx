@@ -187,7 +187,7 @@ const CleanProductGrid: React.FC = () => {
                         </button>
                     </div>
 
-                    {product.discount && product.discount > 0 && (
+                    {(product.discount ?? 0) > 0 && (
                         <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
                             -{Math.round(product.discount)}%
                         </div>

@@ -6,8 +6,6 @@ import com.samzone.backend.service.CategoryImages;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -141,39 +139,48 @@ public class AdminController {
             "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&h=400&fit=crop",
             "https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=400&h=400&fit=crop");
 
+    // findAll(PageRequest) paginates via OFFSET, which gets slower every page
+    // over the full 80k+ row table (O(n^2) overall) and was blowing past
+    // Railway's ~5 minute gateway timeout before finishing. Instead, find
+    // only the (much smaller) set of ids that actually need fixing with one
+    // lean query, then fetch/update those by id - no OFFSET scan at all.
+    @SuppressWarnings("unchecked")
     @PostMapping("/backfill-images")
     @Transactional
     public ResponseEntity<Map<String, Object>> backfillImages() {
+        List<Object> rawIds = entityManager.createNativeQuery(
+                "SELECT p.id FROM products p WHERE NOT EXISTS ("
+                        + "SELECT 1 FROM product_images pi WHERE pi.product_id = p.id"
+                        + ") OR EXISTS ("
+                        + "SELECT 1 FROM product_images pi WHERE pi.product_id = p.id "
+                        + "AND (pi.image_url IS NULL OR pi.image_url = '' "
+                        + "OR pi.image_url LIKE '%placehold%' OR pi.image_url IN (:staleUrls))"
+                        + ")")
+                .setParameter("staleUrls", STALE_SINGLE_IMAGE_URLS)
+                .getResultList();
+
+        List<Long> ids = new ArrayList<>();
+        for (Object id : rawIds) {
+            ids.add(((Number) id).longValue());
+        }
+
         int updated = 0;
-        int page = 0;
-        Page<Product> batch;
-        do {
-            batch = productRepository.findAll(PageRequest.of(page, 500));
-            List<Product> toSave = new ArrayList<>();
-            for (Product product : batch.getContent()) {
-                List<String> images = product.getImages();
-                String currentImage = images != null && !images.isEmpty() ? images.get(0) : null;
-                boolean needsFix = currentImage == null
-                        || currentImage.isBlank()
-                        || currentImage.contains("placehold")
-                        || STALE_SINGLE_IMAGE_URLS.contains(currentImage);
-                if (needsFix) {
-                    product.setImages(new ArrayList<>(List.of(
-                            CategoryImages.getCategoryImage(product.getCategory(), product.getName()))));
-                    toSave.add(product);
-                }
+        for (int i = 0; i < ids.size(); i += 500) {
+            List<Long> chunk = ids.subList(i, Math.min(i + 500, ids.size()));
+            List<Product> products = productRepository.findAllById(chunk);
+            for (Product product : products) {
+                product.setImages(new ArrayList<>(List.of(
+                        CategoryImages.getCategoryImage(product.getCategory(), product.getName()))));
             }
-            if (!toSave.isEmpty()) {
-                productRepository.saveAll(toSave);
-                updated += toSave.size();
-            }
+            productRepository.saveAll(products);
+            updated += products.size();
             entityManager.flush();
             entityManager.clear();
-            page++;
-        } while (batch.hasNext());
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("updatedCount", updated);
+        result.put("candidatesFound", ids.size());
         return ResponseEntity.ok(result);
     }
 }

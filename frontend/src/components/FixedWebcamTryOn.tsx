@@ -1,10 +1,28 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Camera, CameraOff, X, Plus, Minus, RotateCw, Shirt, Maximize2, Minimize2, Download, RefreshCw, ShoppingCart, Sparkles, Upload } from 'lucide-react';
-import { massiveProductCatalog, type Product } from '../data/massiveProductCatalog';
+import type { Product } from '../data/massiveProductCatalog';
 import { productApi } from '../services/api';
-import { getProductImage } from '../utils/productImage';
+import type { Product as ApiProduct } from '../services/api';
+import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
+
+const mapApiProduct = (p: ApiProduct): Product => ({
+    id: p.id,
+    name: p.name,
+    price: p.price,
+    image: getProductImage(p),
+    category: 'mens-clothing',
+    subcategory: 'shirts',
+    brand: p.brand,
+    rating: p.rating,
+    colors: p.colors || [],
+    sizes: p.sizes,
+    description: p.description || '',
+    inStock: true,
+    discount: p.discount,
+    tags: [],
+});
 
 interface OverlayItem {
     id: string;
@@ -75,16 +93,22 @@ const FixedWebcamTryOn: React.FC = () => {
     const draggingIdRef = useRef<string | null>(null);
     const dragOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
 
-    // Filter products for try-on
-    const tryOnProducts = massiveProductCatalog.filter(p =>
-        p.inStock &&
-        (p.category === 'mens-clothing' || p.category === 'womens-clothing') &&
-        (p.subcategory === 'shirts' || p.subcategory === 'tshirts' || p.subcategory === 'dresses')
-    ).slice(0, 12);
+    const [pickerProducts, setPickerProducts] = useState<Product[]>([]);
+    const [pickerLoading, setPickerLoading] = useState(true);
+
+    // Product picker thumbnails come from the real catalog (previously a
+    // hardcoded demo list with fake "Nike"/"Adidas"/"Puma" shirt entries
+    // whose image URLs didn't resolve to anything, showing broken icons).
+    useEffect(() => {
+        productApi.getProducts(0, 12, { category: "Men's Clothing", sortBy: 'rating', sortDir: 'desc' })
+            .then((res) => setPickerProducts(res.content.map(mapApiProduct)))
+            .catch(() => setPickerProducts([]))
+            .finally(() => setPickerLoading(false));
+    }, []);
 
     const displayProducts = preselectedProduct
-        ? [preselectedProduct, ...tryOnProducts.filter(p => p.id !== preselectedProduct.id)]
-        : tryOnProducts;
+        ? [preselectedProduct, ...pickerProducts.filter(p => p.id !== preselectedProduct.id)]
+        : pickerProducts;
 
     const startWebcam = useCallback(async () => {
         try {
@@ -92,8 +116,9 @@ const FixedWebcamTryOn: React.FC = () => {
             setUploadedPhoto(null);
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    width: { ideal: 640 },
-                    height: { ideal: 480 }
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
                 },
                 audio: false
             });
@@ -396,22 +421,7 @@ const FixedWebcamTryOn: React.FC = () => {
         preselectHandled.current = true;
 
         productApi.getProductById(Number(productId)).then((p) => {
-            const mapped: Product = {
-                id: p.id,
-                name: p.name,
-                price: p.price,
-                image: getProductImage(p),
-                category: 'mens-clothing',
-                subcategory: 'shirts',
-                brand: p.brand,
-                rating: p.rating,
-                colors: p.colors || [],
-                sizes: p.sizes,
-                description: p.description || '',
-                inStock: true,
-                discount: p.discount,
-                tags: [],
-            };
+            const mapped = mapApiProduct(p);
             setPreselectedProduct(mapped);
             addProductToOverlay(mapped);
         }).catch(() => {
@@ -419,13 +429,13 @@ const FixedWebcamTryOn: React.FC = () => {
         });
     }, [searchParams, addProductToOverlay]);
 
-    const containerClass = isMaximized 
-        ? "fixed inset-0 bg-black z-50 flex flex-col"
+    const containerClass = isMaximized
+        ? "fixed inset-0 bg-black z-50 flex flex-col overflow-y-auto"
         : "bg-white rounded-lg shadow-lg overflow-hidden";
 
-    const videoContainerClass = isMaximized
-        ? "flex-1 flex"
-        : "h-96 flex";
+    const mainContentClass = isMaximized
+        ? "flex-1 flex flex-col md:flex-row gap-4 p-4"
+        : "flex flex-col md:flex-row gap-4 p-4";
 
     return (
         <div className={containerClass}>
@@ -456,10 +466,11 @@ const FixedWebcamTryOn: React.FC = () => {
             </div>
 
             {/* Main Content */}
-            <div className={videoContainerClass}>
+            <div className={mainContentClass}>
                 {/* Left Side - Webcam */}
+                <div className="flex-1 min-w-0">
                 <div
-                    className="flex-1 relative bg-black"
+                    className="relative w-full max-w-2xl mx-auto aspect-video bg-black rounded-xl overflow-hidden"
                     style={{ touchAction: overlayItems.length > 0 ? 'none' : 'auto' }}
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
@@ -515,12 +526,12 @@ const FixedWebcamTryOn: React.FC = () => {
                                     autoPlay
                                     playsInline
                                     muted
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-contain"
                                 />
                             )}
                             <canvas
                                 ref={canvasRef}
-                                className="absolute inset-0 w-full h-full object-cover"
+                                className="absolute inset-0 w-full h-full object-contain"
                             />
 
                             {/* Controls */}
@@ -551,107 +562,6 @@ const FixedWebcamTryOn: React.FC = () => {
                                 </button>
                             </div>
                             
-                            {/* Overlay Controls */}
-                            {overlayItems.map((item) => (
-                                <div key={item.id} className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-2 mb-2">
-                                    <div className="flex items-center gap-2 text-sm">
-                                        <span className="font-medium">{item.product.name}</span>
-                                        <button
-                                            onClick={() => resetItemPosition(item.id)}
-                                            className="text-gray-500 hover:text-gray-700"
-                                            title="Reset position"
-                                        >
-                                            <RefreshCw className="w-3 h-3" />
-                                        </button>
-                                        <button
-                                            onClick={() => removeOverlayItem(item.id)}
-                                            className="text-red-600 hover:text-red-700"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </div>
-
-                                    {/* Size Control */}
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <button
-                                            onClick={() => updateOverlayItem(item.id, { scale: Math.max(0.2, item.scale - 0.1) })}
-                                            className="p-1 bg-gray-200 rounded hover:bg-gray-300"
-                                        >
-                                            <Minus className="w-3 h-3" />
-                                        </button>
-                                        <span className="text-xs">{Math.round(item.scale * 100)}%</span>
-                                        <button
-                                            onClick={() => updateOverlayItem(item.id, { scale: Math.min(2, item.scale + 0.1) })}
-                                            className="p-1 bg-gray-200 rounded hover:bg-gray-300"
-                                        >
-                                            <Plus className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min={0.2}
-                                        max={0.8}
-                                        step={0.02}
-                                        value={Math.min(0.8, Math.max(0.2, item.scale))}
-                                        onChange={(e) => updateOverlayItem(item.id, { scale: parseFloat(e.target.value) })}
-                                        className="w-full mt-2"
-                                        title="Resize"
-                                    />
-
-                                    {/* Opacity Control */}
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <button
-                                            onClick={() => updateOverlayItem(item.id, { opacity: Math.max(0.3, item.opacity - 0.1) })}
-                                            className="p-1 bg-gray-200 rounded hover:bg-gray-300"
-                                        >
-                                            <Minus className="w-3 h-3" />
-                                        </button>
-                                        <span className="text-xs">{Math.round(item.opacity * 100)}%</span>
-                                        <button
-                                            onClick={() => updateOverlayItem(item.id, { opacity: Math.min(1, item.opacity + 0.1) })}
-                                            className="p-1 bg-gray-200 rounded hover:bg-gray-300"
-                                        >
-                                            <Plus className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                    
-                                    {/* Rotation Control */}
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <button
-                                            onClick={() => updateOverlayItem(item.id, { rotation: item.rotation - 15 })}
-                                            className="p-1 bg-gray-200 rounded hover:bg-gray-300"
-                                        >
-                                            <RotateCw className="w-3 h-3" style={{ transform: 'scaleX(-1)' }} />
-                                        </button>
-                                        <span className="text-xs">{item.rotation}°</span>
-                                        <button
-                                            onClick={() => updateOverlayItem(item.id, { rotation: item.rotation + 15 })}
-                                            className="p-1 bg-gray-200 rounded hover:bg-gray-300"
-                                        >
-                                            <RotateCw className="w-3 h-3" />
-                                        </button>
-                                    </div>
-
-                                    {item.product.sizes && item.product.sizes.length > 0 && (
-                                        <div className="flex items-center gap-1 mt-2 flex-wrap">
-                                            {item.product.sizes.map((size) => (
-                                                <button
-                                                    key={size}
-                                                    onClick={() => setItemSize(item.id, size)}
-                                                    className={`px-2 py-0.5 rounded text-xs transition-colors ${
-                                                        item.selectedSize === size
-                                                            ? 'bg-purple-600 text-white border-purple-600'
-                                                            : 'border border-gray-300 text-gray-700 hover:border-purple-400'
-                                                    }`}
-                                                >
-                                                    {size}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-
                             {overlayItems.length > 0 && !previewDataUrl && (
                                 <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full shadow max-w-[90%] text-center">
                                     Drag the clothing to position it on your body. Use the slider to resize.
@@ -721,14 +631,130 @@ const FixedWebcamTryOn: React.FC = () => {
                     )}
                 </div>
 
+                {/* Per-item controls now sit below the video instead of floating on
+                    top of it, where they used to block the view of the feed. */}
+                {overlayItems.length > 0 && (
+                    <div className="max-w-2xl mx-auto mt-4 space-y-3">
+                        {overlayItems.map((item) => (
+                            <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                                <div className="flex items-center gap-2 text-sm">
+                                    <span className="font-medium flex-1 truncate">{item.product.name}</span>
+                                    <button
+                                        onClick={() => resetItemPosition(item.id)}
+                                        className="text-gray-500 hover:text-gray-700"
+                                        title="Reset position"
+                                    >
+                                        <RefreshCw className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                        onClick={() => removeOverlayItem(item.id)}
+                                        className="text-red-600 hover:text-red-700"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
+
+                                {/* Size Control */}
+                                <div className="flex items-center gap-2 mt-2">
+                                    <button
+                                        onClick={() => updateOverlayItem(item.id, { scale: Math.max(0.2, item.scale - 0.1) })}
+                                        className="p-1 bg-gray-200 rounded hover:bg-gray-300"
+                                    >
+                                        <Minus className="w-3 h-3" />
+                                    </button>
+                                    <span className="text-xs w-10 text-center">{Math.round(item.scale * 100)}%</span>
+                                    <button
+                                        onClick={() => updateOverlayItem(item.id, { scale: Math.min(2, item.scale + 0.1) })}
+                                        className="p-1 bg-gray-200 rounded hover:bg-gray-300"
+                                    >
+                                        <Plus className="w-3 h-3" />
+                                    </button>
+                                    <input
+                                        type="range"
+                                        min={0.2}
+                                        max={0.8}
+                                        step={0.02}
+                                        value={Math.min(0.8, Math.max(0.2, item.scale))}
+                                        onChange={(e) => updateOverlayItem(item.id, { scale: parseFloat(e.target.value) })}
+                                        className="flex-1"
+                                        title="Resize"
+                                    />
+                                </div>
+
+                                {/* Opacity Control */}
+                                <div className="flex items-center gap-2 mt-2">
+                                    <button
+                                        onClick={() => updateOverlayItem(item.id, { opacity: Math.max(0.3, item.opacity - 0.1) })}
+                                        className="p-1 bg-gray-200 rounded hover:bg-gray-300"
+                                    >
+                                        <Minus className="w-3 h-3" />
+                                    </button>
+                                    <span className="text-xs w-10 text-center">{Math.round(item.opacity * 100)}%</span>
+                                    <button
+                                        onClick={() => updateOverlayItem(item.id, { opacity: Math.min(1, item.opacity + 0.1) })}
+                                        className="p-1 bg-gray-200 rounded hover:bg-gray-300"
+                                    >
+                                        <Plus className="w-3 h-3" />
+                                    </button>
+                                    <span className="text-xs text-gray-500">opacity</span>
+                                </div>
+
+                                {/* Rotation Control */}
+                                <div className="flex items-center gap-2 mt-2">
+                                    <button
+                                        onClick={() => updateOverlayItem(item.id, { rotation: item.rotation - 15 })}
+                                        className="p-1 bg-gray-200 rounded hover:bg-gray-300"
+                                    >
+                                        <RotateCw className="w-3 h-3" style={{ transform: 'scaleX(-1)' }} />
+                                    </button>
+                                    <span className="text-xs w-10 text-center">{item.rotation}°</span>
+                                    <button
+                                        onClick={() => updateOverlayItem(item.id, { rotation: item.rotation + 15 })}
+                                        className="p-1 bg-gray-200 rounded hover:bg-gray-300"
+                                    >
+                                        <RotateCw className="w-3 h-3" />
+                                    </button>
+                                    <span className="text-xs text-gray-500">rotation</span>
+                                </div>
+
+                                {item.product.sizes && item.product.sizes.length > 0 && (
+                                    <div className="flex items-center gap-1 mt-2 flex-wrap">
+                                        {item.product.sizes.map((size) => (
+                                            <button
+                                                key={size}
+                                                onClick={() => setItemSize(item.id, size)}
+                                                className={`px-2 py-0.5 rounded text-xs transition-colors ${
+                                                    item.selectedSize === size
+                                                        ? 'bg-purple-600 text-white border-purple-600'
+                                                        : 'border border-gray-300 text-gray-700 hover:border-purple-400'
+                                                }`}
+                                            >
+                                                {size}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+                </div>
+
                 {/* Right Side - Product Selection */}
-                <div className={`${isMaximized ? 'w-80' : 'w-1/2'} bg-gray-50 border-l border-gray-200 overflow-y-auto`}>
+                <div className={`${isMaximized ? 'md:w-80' : 'md:w-1/2'} bg-gray-50 border-l border-gray-200 overflow-y-auto rounded-lg`}>
                     <div className="p-4">
                         <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                             <Shirt className="w-5 h-5" />
                             Select Products to Try On
                         </h3>
-                        
+
+                        {pickerLoading ? (
+                            <div className="grid grid-cols-2 gap-3">
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                    <div key={i} className="bg-gray-200 animate-pulse rounded-lg h-40" />
+                                ))}
+                            </div>
+                        ) : (
                         <div className="grid grid-cols-2 gap-3">
                             {displayProducts.map((product) => {
                                 const isInOverlay = overlayItems.some(item => item.product.id === product.id);
@@ -750,6 +776,7 @@ const FixedWebcamTryOn: React.FC = () => {
                                             src={product.image}
                                             alt={product.name}
                                             className="w-full h-24 object-cover rounded-lg mb-2"
+                                            onError={(e) => { (e.target as HTMLImageElement).src = PLACEHOLDER; }}
                                         />
                                         <h4 className="font-semibold text-sm text-gray-900 line-clamp-1">{product.name}</h4>
                                         <p className="text-xs text-gray-600">{product.brand}</p>
@@ -767,7 +794,8 @@ const FixedWebcamTryOn: React.FC = () => {
                                 );
                             })}
                         </div>
-                        
+                        )}
+
                         {selectedProducts.length > 0 && (
                             <div className="mt-4 p-3 bg-purple-50 rounded-lg">
                                 <h4 className="font-semibold text-purple-900 mb-2">Currently Trying On:</h4>

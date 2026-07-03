@@ -150,7 +150,7 @@ const Home: React.FC = () => {
                                                 <span className="text-lg font-bold text-gray-900">
                                                     ₹{product.price.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                                                 </span>
-                                                {product.rating && (
+                                                {(product.rating ?? 0) > 0 && (
                                                     <span className="flex items-center gap-1 text-xs text-gray-600">
                                                         <Star className="w-3 h-3 text-yellow-500 fill-current" />
                                                         {product.rating.toFixed(1)}
