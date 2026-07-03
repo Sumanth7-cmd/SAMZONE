@@ -62,6 +62,7 @@ export interface PaginatedResponse<T> {
 export interface ProductFilters {
     search?: string;
     category?: string;
+    brand?: string;
     minPrice?: number;
     maxPrice?: number;
     minRating?: number;
@@ -83,6 +84,7 @@ export const productApi = {
         if (filters) {
             if (filters.search) params.append('search', filters.search);
             if (filters.category) params.append('category', filters.category);
+            if (filters.brand) params.append('brand', filters.brand);
             if (filters.minPrice) params.append('minPrice', filters.minPrice.toString());
             if (filters.maxPrice) params.append('maxPrice', filters.maxPrice.toString());
             if (filters.minRating) params.append('minRating', filters.minRating.toString());
@@ -226,6 +228,23 @@ export const productApi = {
         } catch (error) {
             console.warn('Backend API unavailable, using mock data:', error);
             return mockApi.getCategories();
+        }
+    },
+
+    getBrands: async (): Promise<string[]> => {
+        if (USE_MOCK_API) {
+            return [];
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/products/brands`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch brands');
+            }
+            return response.json();
+        } catch (error) {
+            console.warn('Failed to fetch brands:', error);
+            return [];
         }
     },
 

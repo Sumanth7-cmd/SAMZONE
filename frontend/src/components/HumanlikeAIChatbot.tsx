@@ -208,7 +208,7 @@ const HumanlikeAIChatbot: React.FC = () => {
 
     return (
         <div className={`fixed bottom-4 right-4 z-50 transition-all duration-300 ${
-            isMinimized ? 'w-16 h-16' : 'w-96 h-[600px]'
+            isMinimized ? 'w-16 h-16' : 'left-4 sm:left-auto w-auto sm:w-96 h-[600px] max-h-[calc(100vh-2rem)]'
         }`}>
             <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 h-full flex flex-col overflow-hidden">
                 {/* Header */}

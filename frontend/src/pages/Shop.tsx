@@ -1,31 +1,82 @@
-import React, { useState, useEffect } from 'react';
-import { Search, SlidersHorizontal, Heart, TrendingUp, Tag } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Search, SlidersHorizontal, TrendingUp, Tag } from 'lucide-react';
 import { productApi } from '../services/api';
 import type { Product, ProductFilters } from '../services/api';
 import ProductCard from '../components/ProductCard';
 
+const SORT_OPTIONS: Record<string, { sortBy: string; sortDir: 'asc' | 'desc' }> = {
+    name: { sortBy: 'name', sortDir: 'asc' },
+    price: { sortBy: 'price', sortDir: 'asc' },
+    'price-desc': { sortBy: 'price', sortDir: 'desc' },
+    rating: { sortBy: 'rating', sortDir: 'desc' },
+};
+
+const parseFiltersFromParams = (params: URLSearchParams): ProductFilters => {
+    const filters: ProductFilters = {};
+    if (params.get('search')) filters.search = params.get('search')!;
+    if (params.get('category')) filters.category = params.get('category')!;
+    if (params.get('brand')) filters.brand = params.get('brand')!;
+    if (params.get('minPrice')) filters.minPrice = parseInt(params.get('minPrice')!, 10);
+    if (params.get('maxPrice')) filters.maxPrice = parseInt(params.get('maxPrice')!, 10);
+    if (params.get('minRating')) filters.minRating = parseFloat(params.get('minRating')!);
+    return filters;
+};
+
 const Shop: React.FC = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentPage, setCurrentPage] = useState(0);
+    const [currentPage, setCurrentPage] = useState(() => parseInt(searchParams.get('page') || '0', 10));
     const [totalPages, setTotalPages] = useState(0);
     const [totalElements, setTotalElements] = useState(0);
-    const [filters, setFilters] = useState<ProductFilters>({});
+    const [filters, setFilters] = useState<ProductFilters>(() => parseFiltersFromParams(searchParams));
+    const [searchInput, setSearchInput] = useState(() => searchParams.get('search') || '');
     const [showFilters, setShowFilters] = useState(false);
-    const [sortBy, setSortBy] = useState('name');
-    const [wishlist, setWishlist] = useState<number[]>([]);
+    const [sortBy, setSortBy] = useState(() => searchParams.get('sort') || 'name');
     const [categories, setCategories] = useState<string[]>([]);
+    const [brands, setBrands] = useState<string[]>([]);
 
     const pageSize = 20;
+    const isFirstRender = useRef(true);
 
     useEffect(() => {
         fetchCategories();
+        fetchBrands();
     }, []);
 
+    // Debounce the search box: only push it into filters 300ms after typing stops
     useEffect(() => {
+        if (isFirstRender.current) return;
+        const timeout = setTimeout(() => {
+            setFilters(prev => ({ ...prev, search: searchInput || undefined }));
+            setCurrentPage(0);
+        }, 300);
+        return () => clearTimeout(timeout);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchInput]);
+
+    useEffect(() => {
+        isFirstRender.current = false;
         fetchProducts();
-    }, [currentPage, filters]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage, filters, sortBy]);
+
+    // Keep filters/sort/page in the URL so a refresh or shared link restores them
+    useEffect(() => {
+        const params = new URLSearchParams();
+        if (filters.search) params.set('search', filters.search);
+        if (filters.category) params.set('category', filters.category);
+        if (filters.brand) params.set('brand', filters.brand);
+        if (filters.minPrice) params.set('minPrice', filters.minPrice.toString());
+        if (filters.maxPrice) params.set('maxPrice', filters.maxPrice.toString());
+        if (filters.minRating) params.set('minRating', filters.minRating.toString());
+        if (sortBy !== 'name') params.set('sort', sortBy);
+        if (currentPage > 0) params.set('page', currentPage.toString());
+        setSearchParams(params, { replace: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filters, sortBy, currentPage]);
 
     const fetchCategories = async () => {
         try {
@@ -36,11 +87,25 @@ const Shop: React.FC = () => {
         }
     };
 
+    const fetchBrands = async () => {
+        try {
+            const list = await productApi.getBrands();
+            setBrands(list);
+        } catch (err) {
+            console.error('Failed to fetch brands:', err);
+        }
+    };
+
     const fetchProducts = async () => {
         try {
             setLoading(true);
             setError(null);
-            const response = await productApi.getProducts(currentPage, pageSize, filters);
+            const sortConfig = SORT_OPTIONS[sortBy] ?? SORT_OPTIONS.name;
+            const response = await productApi.getProducts(currentPage, pageSize, {
+                ...filters,
+                sortBy: sortConfig.sortBy,
+                sortDir: sortConfig.sortDir,
+            });
             setProducts(response.content);
             setTotalPages(response.totalPages);
             setTotalElements(response.totalElements);
@@ -50,14 +115,6 @@ const Shop: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
-
-    const toggleWishlist = (productId: number) => {
-        setWishlist(prev => 
-            prev.includes(productId) 
-                ? prev.filter(id => id !== productId)
-                : [...prev, productId]
-        );
     };
 
     const applyFilters = () => {
@@ -129,8 +186,8 @@ const Shop: React.FC = () => {
                                     <input
                                         type="text"
                                         placeholder="Search products..."
-                                        value={filters.search || ''}
-                                        onChange={(e) => handleFilterChange({ ...filters, search: e.target.value })}
+                                        value={searchInput}
+                                        onChange={(e) => setSearchInput(e.target.value)}
                                         className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                     />
                                 </div>
@@ -154,6 +211,21 @@ const Shop: React.FC = () => {
                                         </label>
                                     ))}
                                 </div>
+                            </div>
+
+                            {/* Brand */}
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-700 mb-3">Brand</label>
+                                <select
+                                    value={filters.brand || ''}
+                                    onChange={(e) => handleFilterChange({ ...filters, brand: e.target.value || undefined })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                                >
+                                    <option value="">All Brands</option>
+                                    {brands.map(b => (
+                                        <option key={b} value={b}>{b}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             {/* Price Range */}
@@ -262,17 +334,7 @@ const Shop: React.FC = () => {
                         ) : (
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                                 {products.map(product => (
-                                    <div key={product.id} className="relative group">
-                                        <button
-                                            onClick={() => toggleWishlist(product.id)}
-                                            className="absolute top-3 right-3 z-10 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
-                                        >
-                                            <Heart 
-                                                className={`w-4 h-4 ${wishlist.includes(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} 
-                                            />
-                                        </button>
-                                        <ProductCard product={product} />
-                                    </div>
+                                    <ProductCard key={product.id} product={product} />
                                 ))}
                             </div>
                         )}

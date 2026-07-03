@@ -3,100 +3,64 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, Star, Eye, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Product } from '../services/api';
+import { getCart, addToCart as addToCartUtil } from '../utils/cart';
+import { isWishlisted as isProductWishlisted, toggleWishlist as toggleWishlistUtil, WISHLIST_EVENT } from '../utils/wishlist';
 
 interface ProductCardProps {
   product: Product;
 }
 
+const showToast = (text: string, className: string) => {
+  const toast = document.createElement('div');
+  toast.className = `fixed bottom-4 right-4 ${className} text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse`;
+  toast.textContent = text;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2000);
+};
+
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const discountedPrice = product.discount 
-    ? product.price * (1 - product.discount / 100) 
+  const [wishlisted, setWishlisted] = useState(false);
+  const discountedPrice = product.discount
+    ? product.price * (1 - product.discount / 100)
     : product.price;
 
-  // Get wishlist from localStorage
   React.useEffect(() => {
-    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
-    const isInWishlist = wishlist.some((item: any) => item.id === product.id);
-    setIsWishlisted(isInWishlist);
+    const sync = () => setWishlisted(isProductWishlisted(product.id));
+    sync();
+    window.addEventListener(WISHLIST_EVENT, sync);
+    return () => window.removeEventListener(WISHLIST_EVENT, sync);
   }, [product.id]);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    const existingItem = cart.find((item: any) => item.id === product.id);
-    
-    if (existingItem) {
-      // Show "already in cart" toast
-      const toast = document.createElement('div');
-      toast.className = 'fixed bottom-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse';
-      toast.textContent = '⚠️ Already in cart!';
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
-      return;
-    }
-    
-    cart.push({
+
+    const alreadyInCart = getCart().some((item) => item.id === product.id);
+    addToCartUtil({
       id: product.id,
       name: product.name,
       price: discountedPrice,
       image: product.image,
-      quantity: 1,
-      stock: product.stock
+      stock: product.stock,
     });
-    
-    localStorage.setItem('cart', JSON.stringify(cart));
-    
-    // Show success toast
-    const toast = document.createElement('div');
-    toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse';
-    toast.textContent = '✅ Added to cart!';
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
-    
-    // Trigger cart update event
-    window.dispatchEvent(new Event('cartUpdate'));
+
+    if (alreadyInCart) {
+      showToast('⚠️ Already in cart — quantity increased', 'bg-orange-500');
+    } else {
+      showToast('✅ Added to cart!', 'bg-green-500');
+    }
   };
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
-    const isInWishlist = wishlist.some((item: any) => item.id === product.id);
-    
-    if (isInWishlist) {
-      // Remove from wishlist
-      const updatedWishlist = wishlist.filter((item: any) => item.id !== product.id);
-      localStorage.setItem('wishlist', JSON.stringify(updatedWishlist));
-      setIsWishlisted(false);
-      
-      // Show toast
-      const toast = document.createElement('div');
-      toast.className = 'fixed bottom-4 right-4 bg-gray-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse';
-      toast.textContent = 'Removed from wishlist';
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
-    } else {
-      // Add to wishlist
-      wishlist.push({
-        id: product.id,
-        name: product.name,
-        price: discountedPrice,
-        image: product.image
-      });
-      localStorage.setItem('wishlist', JSON.stringify(wishlist));
-      setIsWishlisted(true);
-      
-      // Show toast
-      const toast = document.createElement('div');
-      toast.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse';
-      toast.textContent = '❤️ Added to wishlist!';
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
-    }
+
+    const nowWishlisted = toggleWishlistUtil(product.id);
+    setWishlisted(nowWishlisted);
+    showToast(
+      nowWishlisted ? '❤️ Added to wishlist!' : 'Removed from wishlist',
+      nowWishlisted ? 'bg-red-500' : 'bg-gray-500'
+    );
   };
 
   return (
@@ -161,12 +125,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >
-            <Heart 
+            <Heart
               className={`w-5 h-5 transition-colors ${
-                isWishlisted 
-                  ? 'fill-red-500 text-red-500' 
+                wishlisted
+                  ? 'fill-red-500 text-red-500'
                   : 'text-gray-400 hover:text-red-500'
-              }`} 
+              }`}
             />
           </motion.button>
         </div>

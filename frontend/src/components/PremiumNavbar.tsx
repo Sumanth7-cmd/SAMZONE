@@ -65,6 +65,25 @@ const PremiumNavbar: React.FC = () => {
         }
     };
 
+    const searchForm = (
+        <form onSubmit={handleSearch} className="relative">
+            <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search for products, brands, and more..."
+                className="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+            <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+            <button
+                type="submit"
+                className="absolute right-2 top-1.5 bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-1 rounded transition-colors"
+            >
+                Search
+            </button>
+        </form>
+    );
+
     const categories = [
         { name: 'Men', subcategories: ['Shirts', 'T-Shirts', 'Jeans', 'Trousers', 'Shorts'] },
         { name: 'Women', subcategories: ['Dresses', 'Tops', 'Kurtas', 'Leggings', 'Skirts'] },
@@ -76,8 +95,8 @@ const PremiumNavbar: React.FC = () => {
 
     return (
         <div className="bg-white shadow-sm sticky top-0 z-40">
-            {/* Top Banner */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-2 px-4">
+            {/* Top Banner (hidden on narrow screens — the three text groups don't wrap and overflow below sm) */}
+            <div className="hidden sm:block bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-2 px-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between text-sm">
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
@@ -147,24 +166,9 @@ const PremiumNavbar: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Search Bar */}
-                        <div className="flex-1 max-w-2xl mx-8">
-                            <form onSubmit={handleSearch} className="relative">
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search for products, brands, and more..."
-                                    className="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                />
-                                <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-                                <button
-                                    type="submit"
-                                    className="absolute right-2 top-1.5 bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-1 rounded transition-colors"
-                                >
-                                    Search
-                                </button>
-                            </form>
+                        {/* Search Bar (desktop/tablet only — a compact version renders below on mobile) */}
+                        <div className="hidden md:block flex-1 max-w-2xl mx-8">
+                            {searchForm}
                         </div>
 
                         {/* Right Actions */}
@@ -251,6 +255,10 @@ const PremiumNavbar: React.FC = () => {
                             </button>
                         </div>
                     </div>
+                </div>
+                {/* Search Bar (mobile only) */}
+                <div className="md:hidden px-4 pb-3">
+                    {searchForm}
                 </div>
             </div>
 

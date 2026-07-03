@@ -38,6 +38,8 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String brand,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) Double minPrice,
             @RequestParam(required = false) Double maxPrice,
             @RequestParam(required = false) Double minRating,
@@ -47,9 +49,11 @@ public class ProductController {
         Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
+        String searchTerm = (search == null || search.isBlank()) ? null : search;
+
         Page<Product> result;
-        if (category != null || minPrice != null || maxPrice != null || minRating != null) {
-            result = productRepository.findByFilters(category, minPrice, maxPrice, minRating, pageable);
+        if (category != null || brand != null || searchTerm != null || minPrice != null || maxPrice != null || minRating != null) {
+            result = productRepository.findByFilters(category, brand, searchTerm, minPrice, maxPrice, minRating, pageable);
         } else {
             result = productRepository.findAll(pageable);
         }
@@ -82,6 +86,12 @@ public class ProductController {
     public ResponseEntity<List<String>> getCategories() {
         List<String> categories = productRepository.findAllCategories();
         return ResponseEntity.ok(categories);
+    }
+
+    @GetMapping("/brands")
+    public ResponseEntity<List<String>> getBrands() {
+        List<String> brands = productRepository.findAllBrands();
+        return ResponseEntity.ok(brands);
     }
 
     @PostMapping("/seed")

@@ -17,14 +17,23 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT p FROM Product p WHERE " +
            "(:category IS NULL OR p.category = :category) AND " +
+           "(:brand IS NULL OR LOWER(p.brand) = LOWER(:brand)) AND " +
+           "(:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(p.description) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(p.brand) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
            "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
            "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
            "(:minRating IS NULL OR p.rating >= :minRating)")
     Page<Product> findByFilters(@Param("category") String category,
+                                @Param("brand") String brand,
+                                @Param("search") String search,
                                 @Param("minPrice") Double minPrice,
                                 @Param("maxPrice") Double maxPrice,
                                 @Param("minRating") Double minRating,
                                 Pageable pageable);
+
+    @Query("SELECT DISTINCT p.brand FROM Product p ORDER BY p.brand")
+    List<String> findAllBrands();
 
     @Query("SELECT p FROM Product p WHERE " +
            "LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%')) OR " +

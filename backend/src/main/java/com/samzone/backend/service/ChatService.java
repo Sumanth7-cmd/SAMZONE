@@ -139,7 +139,7 @@ public class ChatService {
         if (intent != null) {
             if (intent.category != null) {
                 results = productRepository
-                        .findByFilters(intent.category, intent.minPrice, intent.maxPrice, null, pageable)
+                        .findByFilters(intent.category, intent.brand, null, intent.minPrice, intent.maxPrice, null, pageable)
                         .getContent();
             } else if (intent.keyword != null || intent.brand != null) {
                 String q = intent.keyword != null ? intent.keyword : intent.brand;
