@@ -13,7 +13,11 @@ interface Message {
     products?: Product[];
 }
 
-const GREETINGS = ['hi', 'hello', 'hey', 'how are you', 'how r u', 'thanks', 'thank you'];
+const EXACT_GREETINGS = [
+    'hi', 'hello', 'hey', 'hii', 'helo',
+    'how are you', 'how r u', 'whats up', "what's up",
+    'thanks', 'thank you', 'bye', 'goodbye',
+];
 
 const GREETING_RESPONSES = [
     "Hello! 👋 Welcome to SAMZONE! I'm S.A.M., your Smart Assistant for Modern Shopping. How can I help you today?",
@@ -130,14 +134,18 @@ const HumanlikeAIChatbot: React.FC = () => {
         };
         setMessages(prev => [...prev, aiMessage]);
 
-        const lower = text.toLowerCase();
-        if (GREETINGS.some(g => lower.includes(g))) {
+        const lower = text.toLowerCase().trim();
+        const isGreeting = EXACT_GREETINGS.some(g =>
+            lower === g || lower === g + '!' || lower === g + '.'
+        );
+        if (isGreeting) {
             const greeting = GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)];
             await simulateStreamingResponse(greeting, []);
             return;
         }
 
         try {
+            console.log('[SAM AI] calling /api/chat with:', text);
             const res = await fetch(`${API_BASE_URL}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

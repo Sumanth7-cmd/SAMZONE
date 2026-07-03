@@ -141,16 +141,41 @@ const FixedWebcamTryOn: React.FC = () => {
     };
 
     const addProductToOverlay = useCallback((product: Product) => {
+        const W = canvasRef.current?.width || videoRef.current?.videoWidth || 640;
+        const H = canvasRef.current?.height || videoRef.current?.videoHeight || 480;
+
+        const lowerName = product.name?.toLowerCase() || '';
+        const isPants = /pant|jean|trouser|short|skirt/.test(lowerName);
+        const isShoes = product.category === 'footwear' || /shoe|boot|sandal|sneaker|slipper/.test(lowerName);
+
+        let x: number, y: number, scale: number;
+        if (isPants) {
+            // Lower half of the body
+            scale = 0.45;
+            x = W * 0.3;
+            y = H * 0.5;
+        } else if (isShoes) {
+            // Near the bottom of the frame
+            scale = 0.25;
+            x = W * 0.35;
+            y = H * 0.85;
+        } else {
+            // Default: shirt/top on the upper torso
+            scale = 0.45;
+            x = W * 0.28;
+            y = H * 0.15;
+        }
+
         const newItem: OverlayItem = {
             id: `overlay_${Date.now()}`,
             product,
-            x: 200, // Center horizontally
-            y: 150, // Upper torso area
-            scale: 0.5, // Appropriate size
-            opacity: 0.8,
+            x,
+            y,
+            scale,
+            opacity: 0.85,
             rotation: 0
         };
-        
+
         setOverlayItems(prev => [...prev, newItem]);
         setSelectedProducts(prev => [...prev, product]);
     }, []);

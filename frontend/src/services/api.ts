@@ -243,7 +243,7 @@ export const productApi = {
                 return targets.some(t => cl.includes(t) || t.includes(cl));
             });
 
-        const CLOTHING_CATEGORIES = ["Shirts", "Pants", "Men's Clothing", "Men's Footwear", "Shoes"];
+        const CLOTHING_CATEGORIES = ["Men's Clothing", "Women's Clothing", "Men's Footwear", "Accessories"];
         const pages = await Promise.all(
             CLOTHING_CATEGORIES.map(category =>
                 productApi.getProducts(0, 100, { category }).catch(() => ({ content: [] as Product[] }))
