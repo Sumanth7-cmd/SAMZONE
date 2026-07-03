@@ -132,18 +132,18 @@ public class AdminController {
         return ResponseEntity.ok(result);
     }
 
-    // Stale single-image URLs from when Accessories/Kids each had only one
-    // photo in their CategoryImages pool (see BUG 4) - anything still on one
-    // of these needs to be re-rotated across the now-expanded pools.
-    private static final List<String> STALE_SINGLE_IMAGE_URLS = List.of(
-            "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&h=400&fit=crop",
-            "https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=400&h=400&fit=crop");
-
     // findAll(PageRequest) paginates via OFFSET, which gets slower every page
     // over the full 80k+ row table (O(n^2) overall) and was blowing past
     // Railway's ~5 minute gateway timeout before finishing. Instead, find
     // only the (much smaller) set of ids that actually need fixing with one
     // lean query, then fetch/update those by id - no OFFSET scan at all.
+    //
+    // Note: this only targets genuinely missing/placeholder images, not a
+    // blacklist of specific "stale" URLs. CategoryImages.getCategoryImage
+    // is a deterministic hash of the product name, so re-running it against
+    // an unchanged name always reassigns the exact same pool entry - a URL
+    // that's simply index 0 of a 4-image pool would get flagged and
+    // "fixed" back to itself forever, never converging.
     @SuppressWarnings("unchecked")
     @PostMapping("/backfill-images")
     @Transactional
@@ -154,9 +154,8 @@ public class AdminController {
                         + ") OR EXISTS ("
                         + "SELECT 1 FROM product_images pi WHERE pi.product_id = p.id "
                         + "AND (pi.image_url IS NULL OR pi.image_url = '' "
-                        + "OR pi.image_url LIKE '%placehold%' OR pi.image_url IN (:staleUrls))"
+                        + "OR pi.image_url LIKE '%placehold%')"
                         + ")")
-                .setParameter("staleUrls", STALE_SINGLE_IMAGE_URLS)
                 .getResultList();
 
         List<Long> ids = new ArrayList<>();
