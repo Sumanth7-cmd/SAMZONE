@@ -71,8 +71,8 @@ public class ChatService {
     private static final Map<String, List<String>> COLOR_HARMONY = Map.ofEntries(
             Map.entry("red", List.of("Navy", "White", "Beige", "Grey")),
             Map.entry("navy", List.of("White", "Mustard", "Coral", "Grey")),
-            Map.entry("black", List.of("White", "Red", "Gold", "Grey")),
-            Map.entry("white", List.of("Navy", "Black", "Olive", "Grey")),
+            Map.entry("black", List.of("White", "Red", "Gold", "Any color")),
+            Map.entry("white", List.of("Navy", "Black", "Olive", "Any color")),
             Map.entry("green", List.of("Beige", "Brown", "White", "Navy")),
             Map.entry("yellow", List.of("Navy", "Grey", "White", "Purple")),
             Map.entry("blue", List.of("Orange", "White", "Grey", "Brown")));
@@ -393,6 +393,9 @@ public class ChatService {
                         || category.equals("Accessories"));
     }
 
+    private static final Set<String> NON_GARMENT_FASHION_WORDS = Set.of(
+            "wear", "clothing", "fashion", "outfit", "formal", "casual", "party");
+
     private List<Product> findFashionCategoryProducts(String lower, Double[] priceRange) {
         Pageable pageable = PageRequest.of(0, 6, Sort.by("rating").descending());
         boolean isWomens = WOMEN_FASHION_KEYWORDS.stream().anyMatch(lower::contains);
@@ -403,6 +406,31 @@ public class ChatService {
         String secondaryCategory = isWomens ? "Men's Clothing" : "Women's Clothing";
 
         String colorHint = BASIC_COLORS.stream().filter(lower::contains).findFirst().orElse(null);
+        String garmentKeyword = FASHION_KEYWORDS.stream()
+                .filter(k -> !NON_GARMENT_FASHION_WORDS.contains(k) && lower.contains(k))
+                .findFirst().orElse(null);
+
+        // Prefer matching the actual garment named in the message (e.g. "shirt", "kurta")
+        // over just returning the top-rated item in the category, which can be unrelated.
+        if (garmentKeyword != null) {
+            for (String category : List.of(primaryCategory, secondaryCategory)) {
+                List<Product> matches = productRepository
+                        .findByFilters(category, null, garmentKeyword, minPrice, maxPrice, null, pageable)
+                        .getContent();
+                if (matches.isEmpty()) {
+                    continue;
+                }
+                if (colorHint != null) {
+                    List<Product> colorFiltered = matches.stream()
+                            .filter(p -> matchesColor(p, colorHint))
+                            .collect(Collectors.toList());
+                    if (!colorFiltered.isEmpty()) {
+                        return colorFiltered;
+                    }
+                }
+                return matches;
+            }
+        }
 
         if (colorHint != null) {
             for (String category : List.of(primaryCategory, secondaryCategory)) {
@@ -426,6 +454,14 @@ public class ChatService {
                     .findByFilters("Accessories", null, null, minPrice, maxPrice, null, pageable).getContent();
         }
         return results;
+    }
+
+    private boolean matchesColor(Product product, String colorHint) {
+        if (product.getColors() != null
+                && product.getColors().stream().anyMatch(c -> c != null && c.toLowerCase().contains(colorHint))) {
+            return true;
+        }
+        return product.getName() != null && product.getName().toLowerCase().contains(colorHint);
     }
 
     private Double[] extractPriceRange(String lower) {
