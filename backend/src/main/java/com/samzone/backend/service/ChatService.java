@@ -18,10 +18,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,6 +50,52 @@ public class ChatService {
     private static final Set<String> WOMEN_FASHION_KEYWORDS = Set.of(
             "dress", "saree", "blouse", "kurti", "women", "womens", "women's", "skirt", "gown");
 
+    private static final List<String> EXACT_GREETINGS = List.of(
+            "hi", "hello", "hey", "hii", "helo",
+            "how are you", "how r u", "whats up", "what's up",
+            "thanks", "thank you", "bye", "goodbye");
+
+    private static final String GREETING_REPLY =
+            "Hello! I'm S.A.M., your Smart Assistant for Modern Shopping. How can I help you today?";
+
+    private static final Set<String> ADVICE_KEYWORDS = Set.of(
+            "what should i wear", "styling tip", "style tip", "goes with", "what goes with",
+            "how to style", "what matches", "matching colors", "matching color",
+            "what color matches", "what colour matches", "color match", "colour match",
+            "pair with", "pairs with");
+
+    private static final Set<String> BASIC_COLORS = Set.of(
+            "black", "white", "red", "blue", "green", "yellow", "purple", "pink",
+            "orange", "brown", "grey", "gray", "navy", "maroon", "beige", "teal");
+
+    private static final Map<String, List<String>> COLOR_HARMONY = Map.ofEntries(
+            Map.entry("red", List.of("Navy", "White", "Beige", "Grey")),
+            Map.entry("navy", List.of("White", "Mustard", "Coral", "Grey")),
+            Map.entry("black", List.of("White", "Red", "Gold", "Grey")),
+            Map.entry("white", List.of("Navy", "Black", "Olive", "Grey")),
+            Map.entry("green", List.of("Beige", "Brown", "White", "Navy")),
+            Map.entry("yellow", List.of("Navy", "Grey", "White", "Purple")),
+            Map.entry("blue", List.of("Orange", "White", "Grey", "Brown")));
+
+    private static final Map<String, List<String>> OCCASION_MAP = Map.of(
+            "wedding", List.of("kurta", "sherwani", "formal", "ethnic"),
+            "college", List.of("casual", "tshirt", "jeans", "sneaker"),
+            "office", List.of("formal", "shirt", "trouser"),
+            "party", List.of("party", "dress", "blazer"),
+            "festival", List.of("ethnic", "kurta", "traditional"),
+            "travel", List.of("casual", "comfortable", "shorts"));
+
+    private static final Pattern BETWEEN_PATTERN = Pattern.compile(
+            "between\\s*[₹rs.]*\\s*([\\d,]+)\\s*(?:and|-|to)\\s*[₹rs.]*\\s*([\\d,]+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern RANGE_PATTERN = Pattern.compile(
+            "[₹rs.]*\\s*([\\d,]+)\\s*(?:-|to)\\s*[₹rs.]*\\s*([\\d,]+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern UNDER_PATTERN = Pattern.compile(
+            "(?:under|below|less than|cheaper than|within)\\s*[₹rs.]*\\s*([\\d,]+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern OVER_PATTERN = Pattern.compile(
+            "(?:above|over|more than)\\s*[₹rs.]*\\s*([\\d,]+)", Pattern.CASE_INSENSITIVE);
+
+    private static final double INR_TO_USD = 83.0;
+
     public ChatResponse chat(String message) {
         if (message == null || message.isBlank()) {
             return ChatResponse.builder()
@@ -56,7 +105,27 @@ public class ChatService {
                     .build();
         }
 
+        String lower = message.toLowerCase().trim();
+
+        boolean isGreeting = EXACT_GREETINGS.stream().anyMatch(g ->
+                lower.equals(g) || lower.equals(g + "!") || lower.equals(g + "."));
+        if (isGreeting) {
+            return ChatResponse.builder().reply(GREETING_REPLY).products(List.of()).success(true).build();
+        }
+
+        if (ADVICE_KEYWORDS.stream().anyMatch(lower::contains)) {
+            return buildAdviceResponse(lower);
+        }
+
         ChatIntent intent = extractIntent(message);
+        if (intent != null && "advice".equalsIgnoreCase(intent.intent) && intent.reply != null && !intent.reply.isBlank()) {
+            List<Product> products = findRelevantProducts(message, intent);
+            if (products.isEmpty()) {
+                products = findFashionCategoryProducts(lower, extractPriceRange(lower));
+            }
+            return ChatResponse.builder().reply(intent.reply).products(products).success(true).build();
+        }
+
         List<Product> products = findRelevantProducts(message, intent);
 
         String reply = products.isEmpty()
@@ -68,6 +137,47 @@ public class ChatService {
                 .products(products)
                 .success(true)
                 .build();
+    }
+
+    private ChatResponse buildAdviceResponse(String lower) {
+        String colorHint = BASIC_COLORS.stream().filter(lower::contains).findFirst().orElse(null);
+        List<String> harmonyColors = colorHint != null
+                ? COLOR_HARMONY.getOrDefault(colorHint, List.of())
+                : List.of();
+
+        String reply;
+        if (!harmonyColors.isEmpty()) {
+            reply = capitalize(colorHint) + " pairs beautifully with " + String.join(", ", harmonyColors)
+                    + ". Here are some options to match:";
+        } else {
+            reply = "Here's a styling tip: keep one statement piece per outfit and balance it with neutral basics. "
+                    + "Here are some products to get you started:";
+        }
+
+        List<Product> products = new ArrayList<>();
+        Pageable pageable = PageRequest.of(0, 3, Sort.by("rating").descending());
+        for (String harmonyColor : harmonyColors) {
+            if (products.size() >= 6) {
+                break;
+            }
+            List<Product> matches = productRepository
+                    .findByFilters("Men's Clothing", null, harmonyColor, null, null, null, pageable)
+                    .getContent();
+            products.addAll(matches);
+        }
+        if (products.isEmpty()) {
+            products = findFashionCategoryProducts(lower, null);
+        }
+
+        return ChatResponse.builder()
+                .reply(reply)
+                .products(products.stream().distinct().limit(6).collect(Collectors.toList()))
+                .success(true)
+                .build();
+    }
+
+    private String capitalize(String s) {
+        return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
     private ChatIntent extractIntent(String message) {
@@ -124,11 +234,13 @@ public class ChatService {
     private String getSystemPrompt() {
         return "You are S.A.M., a shopping assistant for SAMZONE, an Indian e-commerce platform. " +
                 "Extract shopping intent from the user message and return ONLY a raw JSON object with these " +
-                "keys (omit any you cannot determine): category, brand, keyword, minPrice, maxPrice. " +
+                "keys (omit any you cannot determine): category, brand, keyword, minPrice, maxPrice, intent, reply. " +
                 "Prices in the database are in USD. Convert rupee amounts by dividing by 83. " +
                 "Available categories in database: Laptops, Mobiles, Men's Clothing, Men's Footwear, " +
                 "Cameras, Car Accessories, Toys, Movies, Audio & Video, Women's Clothing, Accessories, Kids. " +
                 "Always map user requests to the closest matching category. " +
+                "If the user asks for styling advice, set intent=advice and write helpful fashion guidance " +
+                "in the reply field, plus extract any product filters mentioned. " +
                 "No markdown, no explanation, just the JSON.";
     }
 
@@ -169,7 +281,7 @@ public class ChatService {
         if (results != null && !results.isEmpty()
                 && FASHION_KEYWORDS.stream().anyMatch(lowerMessage::contains)
                 && results.stream().noneMatch(this::isFashionCategoryProduct)) {
-            List<Product> fashionResults = findFashionCategoryProducts(lowerMessage);
+            List<Product> fashionResults = findFashionCategoryProducts(lowerMessage, extractPriceRange(lowerMessage));
             if (!fashionResults.isEmpty()) {
                 results = fashionResults;
             }
@@ -184,13 +296,17 @@ public class ChatService {
 
     private List<Product> findRelevantProductsFallback(String message) {
         String lower = message.toLowerCase();
+        Double[] priceRange = extractPriceRange(lower);
+        Double minPrice = priceRange[0];
+        Double maxPrice = priceRange[1];
+        Pageable pageable = PageRequest.of(0, 6, Sort.by("rating").descending());
 
         for (String category : productRepository.findAllCategories()) {
             String catLower = category.toLowerCase();
             String catSingular = catLower.endsWith("s") ? catLower.substring(0, catLower.length() - 1) : catLower;
             if (lower.contains(catLower) || lower.contains(catSingular)) {
                 List<Product> byCategory = productRepository
-                        .findByCategory(category, PageRequest.of(0, 6, Sort.by("rating").descending()))
+                        .findByFilters(category, null, null, minPrice, maxPrice, null, pageable)
                         .getContent();
                 if (!byCategory.isEmpty()) {
                     return byCategory;
@@ -198,8 +314,16 @@ public class ChatService {
             }
         }
 
+        String occasionKey = OCCASION_MAP.keySet().stream().filter(lower::contains).findFirst().orElse(null);
+        if (occasionKey != null) {
+            List<Product> occasionResults = findOccasionProducts(occasionKey, lower, minPrice, maxPrice);
+            if (!occasionResults.isEmpty()) {
+                return occasionResults;
+            }
+        }
+
         if (FASHION_KEYWORDS.stream().anyMatch(lower::contains)) {
-            List<Product> fashionResults = findFashionCategoryProducts(lower);
+            List<Product> fashionResults = findFashionCategoryProducts(lower, priceRange);
             if (!fashionResults.isEmpty()) {
                 return fashionResults;
             }
@@ -211,7 +335,7 @@ public class ChatService {
         String query = cleaned.isBlank() ? lower : cleaned;
 
         List<Product> results = productRepository
-                .searchProducts(query, PageRequest.of(0, 6, Sort.by("rating").descending()))
+                .findByFilters(null, null, query, minPrice, maxPrice, null, pageable)
                 .getContent();
 
         if (results.isEmpty()) {
@@ -220,7 +344,7 @@ public class ChatService {
                     continue;
                 }
                 results = productRepository
-                        .searchProducts(token, PageRequest.of(0, 6, Sort.by("rating").descending()))
+                        .findByFilters(null, null, token, minPrice, maxPrice, null, pageable)
                         .getContent();
                 if (!results.isEmpty()) {
                     break;
@@ -231,6 +355,36 @@ public class ChatService {
         return results;
     }
 
+    private List<Product> findOccasionProducts(String occasionKey, String lower, Double minPrice, Double maxPrice) {
+        List<String> expansions = OCCASION_MAP.get(occasionKey);
+        boolean isWomens = WOMEN_FASHION_KEYWORDS.stream().anyMatch(lower::contains);
+        String primaryCategory = isWomens ? "Women's Clothing" : "Men's Clothing";
+        String secondaryCategory = isWomens ? "Men's Clothing" : "Women's Clothing";
+        Pageable pageable = PageRequest.of(0, 6, Sort.by("rating").descending());
+
+        for (String category : List.of(primaryCategory, secondaryCategory)) {
+            for (String term : expansions) {
+                List<Product> matches = productRepository
+                        .findByFilters(category, null, term, minPrice, maxPrice, null, pageable)
+                        .getContent();
+                if (!matches.isEmpty()) {
+                    return matches;
+                }
+            }
+        }
+
+        for (String category : List.of(primaryCategory, secondaryCategory)) {
+            List<Product> matches = productRepository
+                    .findByFilters(category, null, null, minPrice, maxPrice, null, pageable)
+                    .getContent();
+            if (!matches.isEmpty()) {
+                return matches;
+            }
+        }
+
+        return List.of();
+    }
+
     private boolean isFashionCategoryProduct(Product product) {
         String category = product.getCategory();
         return category != null
@@ -239,21 +393,70 @@ public class ChatService {
                         || category.equals("Accessories"));
     }
 
-    private List<Product> findFashionCategoryProducts(String lower) {
+    private List<Product> findFashionCategoryProducts(String lower, Double[] priceRange) {
         Pageable pageable = PageRequest.of(0, 6, Sort.by("rating").descending());
         boolean isWomens = WOMEN_FASHION_KEYWORDS.stream().anyMatch(lower::contains);
+        Double minPrice = priceRange != null ? priceRange[0] : null;
+        Double maxPrice = priceRange != null ? priceRange[1] : null;
 
         String primaryCategory = isWomens ? "Women's Clothing" : "Men's Clothing";
         String secondaryCategory = isWomens ? "Men's Clothing" : "Women's Clothing";
 
-        List<Product> results = productRepository.findByCategory(primaryCategory, pageable).getContent();
+        String colorHint = BASIC_COLORS.stream().filter(lower::contains).findFirst().orElse(null);
+
+        if (colorHint != null) {
+            for (String category : List.of(primaryCategory, secondaryCategory)) {
+                List<Product> colorResults = productRepository
+                        .findByFilters(category, null, colorHint, minPrice, maxPrice, null, pageable)
+                        .getContent();
+                if (!colorResults.isEmpty()) {
+                    return colorResults;
+                }
+            }
+        }
+
+        List<Product> results = productRepository
+                .findByFilters(primaryCategory, null, null, minPrice, maxPrice, null, pageable).getContent();
         if (results.isEmpty()) {
-            results = productRepository.findByCategory(secondaryCategory, pageable).getContent();
+            results = productRepository
+                    .findByFilters(secondaryCategory, null, null, minPrice, maxPrice, null, pageable).getContent();
         }
         if (results.isEmpty()) {
-            results = productRepository.findByCategory("Accessories", pageable).getContent();
+            results = productRepository
+                    .findByFilters("Accessories", null, null, minPrice, maxPrice, null, pageable).getContent();
         }
         return results;
+    }
+
+    private Double[] extractPriceRange(String lower) {
+        Matcher m = BETWEEN_PATTERN.matcher(lower);
+        if (m.find()) {
+            return toUsdRange(m.group(1), m.group(2));
+        }
+        m = UNDER_PATTERN.matcher(lower);
+        if (m.find()) {
+            return new Double[]{null, toUsd(m.group(1))};
+        }
+        m = OVER_PATTERN.matcher(lower);
+        if (m.find()) {
+            return new Double[]{toUsd(m.group(1)), null};
+        }
+        m = RANGE_PATTERN.matcher(lower);
+        if (m.find()) {
+            return toUsdRange(m.group(1), m.group(2));
+        }
+        return new Double[]{null, null};
+    }
+
+    private Double[] toUsdRange(String a, String b) {
+        double v1 = toUsd(a);
+        double v2 = toUsd(b);
+        return new Double[]{Math.min(v1, v2), Math.max(v1, v2)};
+    }
+
+    private double toUsd(String rupeeAmount) {
+        String digits = rupeeAmount.replace(",", "");
+        return Double.parseDouble(digits) / INR_TO_USD;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -263,5 +466,7 @@ public class ChatService {
         public String keyword;
         public Double minPrice;
         public Double maxPrice;
+        public String intent;
+        public String reply;
     }
 }
