@@ -30,10 +30,10 @@ const CleanProductGrid: React.FC = () => {
     const [searchInput, setSearchInput] = useState(searchParams.get('q') || '');
     const [debouncedSearch, setDebouncedSearch] = useState(searchInput);
     const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
-    const [minPrice, setMinPrice] = useState('');
-    const [maxPrice, setMaxPrice] = useState('');
-    const [sortBy, setSortBy] = useState('name,asc');
-    const [page, setPage] = useState(0);
+    const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
+    const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
+    const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'name,asc');
+    const [page, setPage] = useState(() => parseInt(searchParams.get('page') || '0', 10));
     const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
 
     useEffect(() => {
@@ -79,6 +79,19 @@ const CleanProductGrid: React.FC = () => {
     useEffect(() => {
         loadProducts();
     }, [loadProducts]);
+
+    // Keep filters/sort/page in the URL so a refresh or shared link restores them
+    useEffect(() => {
+        const params = new URLSearchParams();
+        if (debouncedSearch) params.set('q', debouncedSearch);
+        if (selectedCategory !== 'all') params.set('category', selectedCategory);
+        if (minPrice) params.set('minPrice', minPrice);
+        if (maxPrice) params.set('maxPrice', maxPrice);
+        if (sortBy !== 'name,asc') params.set('sort', sortBy);
+        if (page > 0) params.set('page', page.toString());
+        setSearchParams(params, { replace: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedSearch, selectedCategory, minPrice, maxPrice, sortBy, page]);
 
     const handleLike = (productId: number) => {
         const nowLiked = toggleWishlist(productId);
