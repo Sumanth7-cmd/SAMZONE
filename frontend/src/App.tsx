@@ -23,6 +23,7 @@ const Wishlist = lazy(() => import('./pages/Wishlist'));
 const Compare = lazy(() => import('./pages/Compare'));
 const Admin = lazy(() => import('./pages/Admin'));
 const VisualSearch = lazy(() => import('./pages/VisualSearch'));
+const Stylist = lazy(() => import('./pages/Stylist'));
 
 // Loading component for lazy loaded routes
 const PageLoader = () => (
@@ -73,6 +74,9 @@ function App() {
 
                                     {/* Visual Search */}
                                     <Route path="/visual-search" element={<VisualSearch />} />
+
+                                    {/* AI Outfit Stylist */}
+                                    <Route path="/stylist" element={<Stylist />} />
 
                                     {/* Cart */}
                                     <Route path="/cart" element={<Cart />} />

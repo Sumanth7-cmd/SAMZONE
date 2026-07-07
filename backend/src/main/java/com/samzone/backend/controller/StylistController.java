@@ -1,5 +1,6 @@
 package com.samzone.backend.controller;
 
+import com.samzone.backend.dto.OutfitStylistRequest;
 import com.samzone.backend.service.StylistService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,16 @@ public class StylistController {
 
     @Autowired
     private StylistService stylistService;
+
+    @PostMapping
+    public ResponseEntity<Map<String, Object>> buildOutfit(@RequestBody OutfitStylistRequest request) {
+        if (request.getOccasion() == null || request.getOccasion().isBlank()
+                || request.getGender() == null || request.getGender().isBlank()
+                || request.getBudget() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(stylistService.buildOutfit(request));
+    }
 
     @PostMapping("/complete-look")
     public ResponseEntity<Map<String, Object>> completeLook(@RequestBody Map<String, Object> body) {

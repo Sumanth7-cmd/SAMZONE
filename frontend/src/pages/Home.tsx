@@ -296,6 +296,29 @@ const Home: React.FC = () => {
                 </div>
             </section>
 
+            {/* AI Outfit Stylist */}
+            <section className="py-12 bg-gradient-to-r from-fuchsia-600 to-purple-700">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+                        <div>
+                            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2">
+                                <Sparkles className="w-7 h-7" /> AI Outfit Stylist
+                            </h2>
+                            <p className="text-fuchsia-100 text-lg">
+                                Get a complete, coordinated look for any occasion — picked from real products
+                            </p>
+                        </div>
+                        <Link
+                            to="/stylist"
+                            className="inline-flex items-center px-8 py-3 bg-white text-fuchsia-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-300 whitespace-nowrap"
+                        >
+                            ✨ Style Me
+                            <ArrowRight className="ml-2 h-5 w-5" />
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
             {/* Recommended For You */}
             {(loadingRecs || recommendations.length > 0) && (
                 <section className="py-16 bg-white">

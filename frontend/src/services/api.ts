@@ -337,6 +337,19 @@ export interface StylistPick {
     reason: string;
 }
 
+export interface OutfitStylistRequest {
+    occasion: string;
+    gender: 'men' | 'women';
+    budget: number;
+    preferredColor?: string;
+}
+
+export interface OutfitStylistResult {
+    outfit: Product[];
+    explanation: string;
+    totalPrice: number;
+}
+
 export const stylistApi = {
     completeLook: async (productId: number): Promise<{ product: Product; picks: StylistPick[] }> => {
         const response = await fetch(`${API_BASE_URL}/stylist/complete-look`, {
@@ -354,6 +367,24 @@ export const stylistApi = {
                 product: mapRawProduct(p.product),
                 reason: p.reason,
             })),
+        };
+    },
+
+    buildOutfit: async (request: OutfitStylistRequest): Promise<OutfitStylistResult> => {
+        const response = await fetch(`${API_BASE_URL}/stylist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request),
+        });
+        if (!response.ok) {
+            throw new Error('Outfit styling failed');
+        }
+        const data = await response.json();
+        const outfit = (data.outfit || []).map(mapRawProduct);
+        return {
+            outfit,
+            explanation: data.explanation || '',
+            totalPrice: outfit.reduce((sum: number, p: Product) => sum + p.price, 0),
         };
     },
 };
