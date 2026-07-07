@@ -149,6 +149,29 @@ const Home: React.FC = () => {
                 </div>
             </section>
 
+            {/* Style DNA Banner */}
+            <section className="py-12 bg-gradient-to-r from-indigo-700 to-purple-700">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+                        <div>
+                            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                                🧬 Discover Your Style DNA
+                            </h2>
+                            <p className="text-indigo-100 text-lg">
+                                Take the quiz and get your personalized style profile
+                            </p>
+                        </div>
+                        <Link
+                            to="/style-dna"
+                            className="inline-flex items-center px-8 py-3 bg-white text-indigo-700 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-300 whitespace-nowrap"
+                        >
+                            Take the Quiz
+                            <ArrowRight className="ml-2 h-5 w-5" />
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
             {/* Features Section */}
             <section className="py-16 bg-gray-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

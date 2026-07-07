@@ -388,3 +388,50 @@ export const stylistApi = {
         };
     },
 };
+
+export interface StyleDnaAnswers {
+    colorPreference: 'bold' | 'neutral' | 'pastel' | 'monochrome';
+    fitPreference: 'relaxed/oversized' | 'fitted/tailored' | 'mixed';
+    occasionFocus: 'casual-everyday' | 'office/formal' | 'party/going-out' | 'ethnic/festive';
+    styleIcon: string;
+    budgetRange: 'budget' | 'mid-range' | 'premium';
+    gender: 'men' | 'women';
+}
+
+export interface StyleDnaArchetype {
+    name: string;
+    percentage: number;
+}
+
+export interface StyleDnaProfile {
+    archetypes: StyleDnaArchetype[];
+    profileTitle: string;
+    description: string;
+    colorPalette: string[];
+    keywords: string[];
+}
+
+export interface StyleDnaResult {
+    profile: StyleDnaProfile;
+    moodBoard: Product[];
+    topPicks: Product[];
+}
+
+export const styleDnaApi = {
+    buildProfile: async (answers: StyleDnaAnswers): Promise<StyleDnaResult> => {
+        const response = await fetch(`${API_BASE_URL}/style-dna`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers }),
+        });
+        if (!response.ok) {
+            throw new Error('Style DNA analysis failed');
+        }
+        const data = await response.json();
+        return {
+            profile: data.profile,
+            moodBoard: (data.moodBoard || []).map(mapRawProduct),
+            topPicks: (data.topPicks || []).map(mapRawProduct),
+        };
+    },
+};

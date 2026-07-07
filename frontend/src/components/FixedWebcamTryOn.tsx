@@ -1,36 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Camera, CameraOff, X, Plus, Minus, RotateCw, Shirt, Maximize2, Minimize2, Download, RefreshCw, ShoppingCart, Sparkles, Upload, Wand2 } from 'lucide-react';
+import { Camera, CameraOff, X, Plus, Minus, RotateCw, Shirt, Maximize2, Minimize2, Download, RefreshCw, ShoppingCart, Sparkles, Upload } from 'lucide-react';
 import type { Product } from '../data/massiveProductCatalog';
-import { productApi, tryOnApi } from '../services/api';
+import { productApi } from '../services/api';
 import type { Product as ApiProduct } from '../services/api';
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
-
-const MAX_TRYON_DIMENSION = 1024;
-
-// Downscales a data URL to keep the AI try-on request comfortably under the
-// backend's 2MB cap - full-res phone/webcam captures routinely exceed that.
-const downscaleForTryOn = (dataUrl: string): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            const scale = Math.min(1, MAX_TRYON_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.round(img.naturalWidth * scale);
-            canvas.height = Math.round(img.naturalHeight * scale);
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                reject(new Error('Canvas unavailable'));
-                return;
-            }
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL('image/jpeg', 0.85));
-        };
-        img.onerror = () => reject(new Error('Failed to load image'));
-        img.src = dataUrl;
-    });
-};
 
 const mapApiProduct = (p: ApiProduct): Product => ({
     id: p.id,
@@ -106,9 +81,6 @@ const FixedWebcamTryOn: React.FC = () => {
     const [preselectedProduct, setPreselectedProduct] = useState<Product | null>(null);
     const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
     const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
-    const [aiTryOnLoading, setAiTryOnLoading] = useState(false);
-    const [aiResultImage, setAiResultImage] = useState<string | null>(null);
-    const [aiFallbackMessage, setAiFallbackMessage] = useState<string | null>(null);
     const preselectHandled = useRef(false);
 
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -186,8 +158,6 @@ const FixedWebcamTryOn: React.FC = () => {
     const removePhoto = useCallback(() => {
         setUploadedPhoto(null);
         setPreviewDataUrl(null);
-        setAiResultImage(null);
-        setAiFallbackMessage(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -343,8 +313,6 @@ const FixedWebcamTryOn: React.FC = () => {
         setOverlayItems([]);
         setSelectedProducts([]);
         setPreviewDataUrl(null);
-        setAiResultImage(null);
-        setAiFallbackMessage(null);
     }, []);
 
     const resetItemPosition = useCallback((id: string) => {
@@ -431,59 +399,6 @@ const FixedWebcamTryOn: React.FC = () => {
         link.download = 'samzone-try-on-preview.png';
         link.click();
     }, [previewDataUrl]);
-
-    // Grabs the raw, overlay-free source image so Gemini edits an unmodified
-    // person photo rather than the composited canvas (which already has the
-    // clothing drawn on top for the manual overlay path).
-    const getRawPhotoBase64 = useCallback((): string | null => {
-        if (uploadedPhoto) return uploadedPhoto;
-        if (isWebcamOn && videoRef.current && videoRef.current.videoWidth > 0) {
-            const canvas = document.createElement('canvas');
-            canvas.width = videoRef.current.videoWidth;
-            canvas.height = videoRef.current.videoHeight;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return null;
-            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL('image/jpeg', 0.9);
-        }
-        return null;
-    }, [uploadedPhoto, isWebcamOn]);
-
-    const handleAiTryOn = useCallback(async () => {
-        const rawPhoto = getRawPhotoBase64();
-        const product = overlayItems[0]?.product;
-        if (!rawPhoto || !product) return;
-
-        setAiTryOnLoading(true);
-        setAiFallbackMessage(null);
-        setAiResultImage(null);
-        try {
-            const photo = await downscaleForTryOn(rawPhoto);
-            const result = await tryOnApi.generateTryOn(photo, product.image, product.name);
-            if (result.success && result.resultImage) {
-                setAiResultImage(`data:image/png;base64,${result.resultImage}`);
-            } else {
-                setAiFallbackMessage(result.message || 'AI try-on unavailable right now — using manual positioning.');
-            }
-        } catch {
-            setAiFallbackMessage('AI try-on unavailable right now — using manual positioning.');
-        } finally {
-            setAiTryOnLoading(false);
-        }
-    }, [getRawPhotoBase64, overlayItems]);
-
-    const downloadAiResult = useCallback(() => {
-        if (!aiResultImage) return;
-        const link = document.createElement('a');
-        link.href = aiResultImage;
-        link.download = 'samzone-ai-try-on.png';
-        link.click();
-    }, [aiResultImage]);
-
-    const resetAiTryOn = useCallback(() => {
-        setAiResultImage(null);
-        setAiFallbackMessage(null);
-    }, []);
 
     const tryAnotherSize = useCallback(() => {
         setOverlayItems(prev => prev.map(item => ({ ...item, selectedSize: undefined })));
@@ -657,74 +572,22 @@ const FixedWebcamTryOn: React.FC = () => {
                                 </button>
                             </div>
                             
-                            {overlayItems.length > 0 && !previewDataUrl && !aiResultImage && !aiFallbackMessage && (
+                            {overlayItems.length > 0 && !previewDataUrl && (
                                 <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full shadow max-w-[90%] text-center">
                                     Drag the clothing to position it on your body. Use the slider to resize.
                                 </div>
                             )}
 
-                            {aiFallbackMessage && !aiResultImage && (
-                                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-amber-500/90 text-white text-xs px-3 py-1.5 rounded-full shadow max-w-[90%] text-center">
-                                    {aiFallbackMessage}
-                                </div>
-                            )}
-
-                            {aiTryOnLoading && (
-                                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80">
-                                    <div className="text-center px-6 max-w-xs">
-                                        <Wand2 className="w-10 h-10 text-purple-300 mx-auto mb-4 animate-pulse" />
-                                        <p className="text-white font-medium mb-4">
-                                            AI is dressing you up... ✨<br />
-                                            <span className="text-xs text-gray-300">(takes 15-30 seconds)</span>
-                                        </p>
-                                        <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-                                            <div className="h-full w-2/3 bg-purple-400 rounded-full animate-pulse" />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {aiResultImage && !aiTryOnLoading && (
-                                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black">
-                                    <img src={aiResultImage} alt="AI try-on result" className="max-w-full max-h-full object-contain" />
-                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap gap-2 justify-center px-4">
-                                        <button
-                                            onClick={downloadAiResult}
-                                            className="bg-white text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm font-medium shadow-lg"
-                                        >
-                                            <Download className="w-4 h-4" />
-                                            Download
-                                        </button>
-                                        <button
-                                            onClick={resetAiTryOn}
-                                            className="bg-white/20 text-white border border-white/40 px-4 py-2 rounded-lg hover:bg-white/30 transition-colors flex items-center gap-2 text-sm font-medium shadow-lg"
-                                        >
-                                            <RefreshCw className="w-4 h-4" />
-                                            Back to Manual
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {overlayItems.length > 0 && !aiTryOnLoading && !aiResultImage && (
+                            {overlayItems.length > 0 && (
                                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap gap-2 justify-center px-4">
                                     {!previewDataUrl ? (
-                                        <>
-                                            <button
-                                                onClick={handleAiTryOn}
-                                                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-lg"
-                                            >
-                                                <Wand2 className="w-4 h-4" />
-                                                ✨ AI Try-On
-                                            </button>
-                                            <button
-                                                onClick={generatePreview}
-                                                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-lg"
-                                            >
-                                                <Sparkles className="w-4 h-4" />
-                                                Generate Preview
-                                            </button>
-                                        </>
+                                        <button
+                                            onClick={generatePreview}
+                                            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-lg"
+                                        >
+                                            <Sparkles className="w-4 h-4" />
+                                            Generate Preview
+                                        </button>
                                     ) : (
                                         <>
                                             <button

@@ -12,7 +12,8 @@ import {
     HelpCircle,
     Gift,
     Sparkles,
-    Camera
+    Camera,
+    Dna
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CART_EVENT, getCartCount } from '../utils/cart';
@@ -190,6 +191,14 @@ const PremiumNavbar: React.FC = () => {
                                     <Sparkles className="w-4 h-4" />
                                     Outfit Stylist
                                 </Link>
+
+                                <Link
+                                    to="/style-dna"
+                                    className="flex items-center gap-1 text-purple-700 font-medium hover:text-purple-900 transition-colors py-2"
+                                >
+                                    <Dna className="w-4 h-4" />
+                                    Style DNA
+                                </Link>
                             </div>
                         </div>
 
@@ -309,6 +318,14 @@ const PremiumNavbar: React.FC = () => {
                             >
                                 <Sparkles className="w-4 h-4" />
                                 Outfit Stylist
+                            </Link>
+                            <Link
+                                to="/style-dna"
+                                className="flex items-center gap-2 font-medium text-purple-700 py-2"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                <Dna className="w-4 h-4" />
+                                Style DNA
                             </Link>
                             {categories.map((category) => (
                                 <div key={category.name}>
