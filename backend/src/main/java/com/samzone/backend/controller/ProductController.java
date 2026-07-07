@@ -16,13 +16,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
 
     private static final int IMAGE_REFRESH_BATCH_SIZE = 500;
+
+    private static final List<String> FASHION_CATEGORIES = List.of(
+            "Men's Clothing", "Women's Clothing", "Men's Footwear", "Shoes");
 
     @Autowired
     private ProductRepository productRepository;
@@ -98,6 +104,52 @@ public class ProductController {
     public ResponseEntity<String> seedProducts() {
         productSeeder.seedProducts();
         return ResponseEntity.ok("Products seeded successfully!");
+    }
+
+    // Top-rated clothing/footwear with a real image, capped at 10. Overfetch
+    // 40 candidates by rating since some may lack images, then trim.
+    @GetMapping("/bestsellers")
+    public ResponseEntity<List<Product>> getBestsellers() {
+        List<Product> candidates = productRepository.findTopRatedByCategories(
+                FASHION_CATEGORIES, PageRequest.of(0, 40, Sort.by("rating").descending()));
+
+        List<Product> withImages = candidates.stream()
+                .filter(p -> p.getImages() != null && !p.getImages().isEmpty()
+                        && p.getImages().get(0) != null && !p.getImages().get(0).isBlank())
+                .limit(10)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(withImages);
+    }
+
+    // DB discount is mostly 0, so this generates a deterministic display
+    // discount from the product id instead of persisting a fake discount.
+    @GetMapping("/deals")
+    public ResponseEntity<List<Map<String, Object>>> getDeals() {
+        List<Product> candidates = productRepository.findRandomByCategories(FASHION_CATEGORIES, 10);
+
+        List<Map<String, Object>> deals = candidates.stream().map(p -> {
+            int discount = 10 + (int) (p.getId() % 4) * 10;
+            double originalPrice = p.getPrice() / (1 - discount / 100.0);
+
+            Map<String, Object> deal = new LinkedHashMap<>();
+            deal.put("id", p.getId());
+            deal.put("name", p.getName());
+            deal.put("brand", p.getBrand());
+            deal.put("category", p.getCategory());
+            deal.put("price", p.getPrice());
+            deal.put("originalPrice", originalPrice);
+            deal.put("discount", discount);
+            deal.put("rating", p.getRating());
+            deal.put("images", p.getImages());
+            deal.put("colors", p.getColors());
+            deal.put("sizes", p.getSizes());
+            deal.put("stock", p.getStock());
+            deal.put("description", p.getDescription());
+            return deal;
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(deals);
     }
 
     @PostMapping("/refresh-images")

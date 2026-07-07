@@ -46,10 +46,13 @@ public class ChatService {
 
     private static final Set<String> FASHION_KEYWORDS = Set.of(
             "shirt", "pant", "kurta", "dress", "saree", "jeans", "top", "blouse",
-            "outfit", "wear", "clothing", "fashion", "ethnic", "formal", "casual", "party");
+            "outfit", "wear", "clothing", "fashion", "ethnic", "formal", "casual", "party",
+            "hoodie", "sweatshirt", "suit", "blazer", "sherwani", "lehenga", "kurti",
+            "anarkali", "gown", "palazzo", "chinos");
 
     private static final Set<String> WOMEN_FASHION_KEYWORDS = Set.of(
-            "dress", "saree", "blouse", "kurti", "women", "womens", "women's", "skirt", "gown");
+            "dress", "saree", "blouse", "kurti", "women", "womens", "women's", "skirt", "gown",
+            "lehenga", "anarkali", "palazzo");
 
     private static final List<String> EXACT_GREETINGS = List.of(
             "hi", "hello", "hey", "hii", "helo",
@@ -87,7 +90,8 @@ public class ChatService {
             "office", List.of("formal", "shirt", "trouser"),
             "party", List.of("party", "dress", "blazer"),
             "festival", List.of("ethnic", "kurta", "traditional"),
-            "travel", List.of("casual", "comfortable", "shorts"));
+            "travel", List.of("casual", "comfortable", "shorts"),
+            "birthday", List.of("party", "dress", "casual", "shirt", "birthday"));
 
     private static final Pattern BETWEEN_PATTERN = Pattern.compile(
             "between\\s*[₹rs.]*\\s*([\\d,]+)\\s*(?:and|-|to)\\s*[₹rs.]*\\s*([\\d,]+)", Pattern.CASE_INSENSITIVE);
@@ -113,7 +117,8 @@ public class ChatService {
             "office", "Sharp office looks, coming right up! 💼",
             "party", "Party-ready picks incoming! 🎉",
             "festival", "Festive picks for the occasion! 🪔",
-            "travel", "Comfy travel-ready picks! ✈️");
+            "travel", "Comfy travel-ready picks! ✈️",
+            "birthday", "Birthday party picks coming up! 🎂");
 
     private static final String NO_MATCH_REPLY =
             "I couldn't find exactly that, but here are similar items. Try being more specific "

@@ -52,4 +52,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     boolean existsByNameIgnoreCaseAndBrandIgnoreCase(String name, String brand);
 
     boolean existsByNameIgnoreCaseAndPrice(String name, Double price);
+
+    @Query("SELECT p FROM Product p WHERE p.category IN :categories ORDER BY p.rating DESC")
+    List<Product> findTopRatedByCategories(@Param("categories") List<String> categories, Pageable pageable);
+
+    @Query(value = "SELECT * FROM products WHERE category IN (:categories) ORDER BY RANDOM() LIMIT :limit",
+            nativeQuery = true)
+    List<Product> findRandomByCategories(@Param("categories") List<String> categories, @Param("limit") int limit);
+
+    long countByExternalIdStartingWith(String prefix);
 }

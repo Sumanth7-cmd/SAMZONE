@@ -3,6 +3,7 @@ package com.samzone.backend.controller;
 import com.samzone.backend.entity.Product;
 import com.samzone.backend.repository.ProductRepository;
 import com.samzone.backend.service.CategoryImages;
+import com.samzone.backend.service.FashionCatalogSeeder;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,8 +32,19 @@ public class AdminController {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private FashionCatalogSeeder fashionCatalogSeeder;
+
     @PersistenceContext
     private EntityManager entityManager;
+
+    @PostMapping("/seed-fashion")
+    public ResponseEntity<Map<String, Object>> seedFashion() {
+        int inserted = fashionCatalogSeeder.seed();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("insertedCount", inserted);
+        return ResponseEntity.ok(result);
+    }
 
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getStats() {
