@@ -123,9 +123,11 @@ public class StyleDnaService {
     // (trolley bags, table lamps, placemats) from a different import batch -
     // querying it untermed for the generic accessory slot pulled a table lamp
     // and a set of placemats into a fashion mood board. Scope to genuine
-    // fashion-accessory terms that have real hits in the catalog.
+    // fashion-accessory terms that have real hits in the catalog. "bag" was
+    // tried first but the search is a plain substring match, so it also
+    // matched "Trolley Bag" (luggage) - "backpack" doesn't have that collision.
     private static final List<String> FASHION_ACCESSORY_TERMS =
-            List.of("bag", "watch", "sunglasses", "scarf", "jewelry", "wallet", "belt");
+            List.of("backpack", "watch", "sunglasses", "scarf", "jewelry", "wallet", "belt");
 
     public Map<String, Object> buildProfile(StyleDnaAnswers answers) {
         StyleDnaProfile profile = callGemini(answers);
