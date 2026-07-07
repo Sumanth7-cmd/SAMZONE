@@ -116,8 +116,14 @@ public class StyleDnaService {
             "ethnic/festive", List.of("salwar suit", "palazzo"));
     private static final List<String> WOMEN_BOTTOM_DEFAULT = List.of("jeans", "skirt");
 
-    private static final List<String> WOMEN_FOOTWEAR_TERMS =
-            List.of("heel", "sandal", "flat", "sneaker", "footwear");
+    // "heel"/"heels" were dropped: the catalog's product descriptions contain
+    // phrases like "...inline skate wheels..." and a plain substring search
+    // matches "heel" *inside* "wheels", pulling luggage into the footwear
+    // slot. "sandal"/"flat"/"footwear"/"shoe" were also tried live and either
+    // matched zero real products or matched unrelated items (a face serum, a
+    // sock brand) via the same substring-collision problem - "sneaker" is the
+    // only term verified to return real, on-topic hits against this catalog.
+    private static final List<String> WOMEN_FOOTWEAR_TERMS = List.of("sneaker");
 
     // The "Accessories" DB category is contaminated with non-fashion inventory
     // (trolley bags, table lamps, placemats) from a different import batch -
@@ -337,7 +343,7 @@ public class StyleDnaService {
 
         List<List<Product>> perSlotCandidates = new ArrayList<>();
         for (ProductSlot slot : slots) {
-            perSlotCandidates.add(fetchSlotProducts(slot.category, slot.terms, colorPalette, maxPriceUsd));
+            perSlotCandidates.add(fetchSlotProducts(slot.category, slot.terms, colorPalette, maxPriceUsd, isWomen));
         }
 
         List<Product> moodBoard = new ArrayList<>();
@@ -349,7 +355,7 @@ public class StyleDnaService {
         if (moodBoard.size() < MOOD_BOARD_MIN) {
             List<List<Product>> widerCandidates = new ArrayList<>();
             for (ProductSlot slot : slots) {
-                widerCandidates.add(fetchSlotProducts(slot.category, slot.terms, null, null));
+                widerCandidates.add(fetchSlotProducts(slot.category, slot.terms, null, null, isWomen));
             }
             roundRobinFill(moodBoard, seen, widerCandidates, MOOD_BOARD_MIN);
         }
@@ -384,7 +390,7 @@ public class StyleDnaService {
     }
 
     private List<Product> fetchSlotProducts(String category, List<String> terms, List<String> colorPalette,
-            Double maxPriceUsd) {
+            Double maxPriceUsd, boolean isWomen) {
         // Pull a wide candidate pool per term before filtering by color - fetching
         // only a handful of top-rated rows and then filtering by color routinely
         // throws away every real match (see ChatService.findByColorAndTarget for
@@ -399,14 +405,14 @@ public class StyleDnaService {
                     .findByFilters(category, null, term, null, maxPriceUsd, null, pool)
                     .getContent();
             for (Product p : matches) {
-                if (seen.add(p.getId())) {
+                if (seen.add(p.getId()) && !isOppositeGender(p, isWomen)) {
                     candidates.add(p);
                 }
             }
         }
 
         if (candidates.isEmpty() && maxPriceUsd != null) {
-            return fetchSlotProducts(category, terms, colorPalette, null);
+            return fetchSlotProducts(category, terms, colorPalette, null, isWomen);
         }
 
         if (colorPalette != null && !colorPalette.isEmpty()) {
@@ -420,6 +426,21 @@ public class StyleDnaService {
         }
 
         return candidates.stream().limit(PER_SLOT_CANDIDATES).collect(Collectors.toList());
+    }
+
+    // The shared "Accessories" category (unlike Men's/Women's Clothing) isn't
+    // gender-segmented - a "sneaker" search for a women's mood board can
+    // return an explicitly "Puma Men ..." product. Catalog naming convention
+    // is consistently "Brand Men/Women Color Item", so a padded " men "/
+    // " women " substring check (avoiding a bare "men" match inside "Women")
+    // is enough to filter the opposite-gender-labeled ones out.
+    private boolean isOppositeGender(Product product, boolean isWomen) {
+        String name = product.getName();
+        if (name == null) {
+            return false;
+        }
+        String padded = (" " + name + " ").toLowerCase();
+        return isWomen ? padded.contains(" men ") : padded.contains(" women ");
     }
 
     private boolean matchesAnyColor(Product product, List<String> colorPalette) {
