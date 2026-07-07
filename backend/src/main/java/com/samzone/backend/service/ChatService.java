@@ -391,19 +391,35 @@ public class ChatService {
         }
     }
 
+    // How many category+term candidates to pull from the DB before filtering by
+    // color in Java. Must be well above the final `limit` - fetching only
+    // `limit` rows (top-rated first) and then filtering by color routinely threw
+    // away every real match, since the top-3-rated shirts are rarely the exact
+    // suggested color, even though plenty of matching-color shirts exist further
+    // down the rating order.
+    private static final int COLOR_MATCH_CANDIDATE_POOL = 40;
+
     private List<Product> findByColorAndTarget(String colorWord, ComplementaryTarget target, int limit) {
         String colorLower = colorWord.toLowerCase();
         List<String> colorCandidates = new ArrayList<>();
         colorCandidates.add(colorLower);
         colorCandidates.addAll(COLOR_FAMILY_FALLBACK.getOrDefault(colorLower, List.of()));
+        // Gemini often returns multi-word shades ("light blue", "emerald green")
+        // that match neither BASIC_COLORS nor an explicit COLOR_FAMILY_FALLBACK
+        // entry verbatim; the base color is usually the last word.
+        for (String word : colorLower.split("\\s+")) {
+            if (BASIC_COLORS.contains(word) && !colorCandidates.contains(word)) {
+                colorCandidates.add(word);
+            }
+        }
 
-        Pageable pageable = PageRequest.of(0, limit, Sort.by("rating").descending());
+        Pageable candidatePool = PageRequest.of(0, COLOR_MATCH_CANDIDATE_POOL, Sort.by("rating").descending());
 
         if (!target.terms.isEmpty()) {
             for (String category : List.of("Men's Clothing", "Women's Clothing")) {
                 for (String term : target.terms) {
                     List<Product> matches = productRepository
-                            .findByFilters(category, null, term, null, null, null, pageable)
+                            .findByFilters(category, null, term, null, null, null, candidatePool)
                             .getContent();
                     if (matches.isEmpty()) {
                         continue;
@@ -411,6 +427,7 @@ public class ChatService {
                     for (String colorCandidate : colorCandidates) {
                         List<Product> colorFiltered = matches.stream()
                                 .filter(p -> matchesColor(p, colorCandidate))
+                                .limit(limit)
                                 .collect(Collectors.toList());
                         if (!colorFiltered.isEmpty()) {
                             return colorFiltered;
@@ -418,8 +435,14 @@ public class ChatService {
                     }
                 }
             }
+            // Genuine clothing target (shirts/pants) with no color match found -
+            // let the caller fall back to general fashion results instead of
+            // returning an unrelated Accessories product (e.g. a cologne) just
+            // because its keyword search happened to match the color word.
+            return List.of();
         }
 
+        Pageable pageable = PageRequest.of(0, limit, Sort.by("rating").descending());
         for (String colorCandidate : colorCandidates) {
             List<Product> results = productRepository
                     .findByFilters("Accessories", null, colorCandidate, null, null, null, pageable)

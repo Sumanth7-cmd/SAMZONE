@@ -754,7 +754,15 @@ const FixedWebcamTryOn: React.FC = () => {
                             )}
 
                             {previewDataUrl && overlayItems.some(item => item.selectedSize) && (
-                                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs px-3 py-1.5 rounded-full shadow">
+                                // top-4 (not bottom-20) so this never overlaps the Download/Try
+                                // Another Size/Add to Cart button row pinned to the bottom - those
+                                // buttons can wrap onto two lines depending on container width,
+                                // which pushed their top edge up into a bottom-anchored tip and
+                                // silently ate clicks on "Download Preview" (pointer-events
+                                // resolve to whichever absolutely-positioned element paints last).
+                                // The only other top-4 tip (drag instructions) only shows before
+                                // a preview exists, so the two never appear at the same time.
+                                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm text-gray-800 text-xs px-3 py-1.5 rounded-full shadow pointer-events-none">
                                     Based on standard sizing, size{' '}
                                     {overlayItems.filter(item => item.selectedSize).map(item => item.selectedSize).join(', ')}{' '}
                                     is a good starting point.
