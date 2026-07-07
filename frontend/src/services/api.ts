@@ -41,6 +41,7 @@ export interface Product {
     category: string;
     images?: string[];
     discount?: number;
+    originalPrice?: number;
     stock?: number;
     colors?: string[];
     sizes?: string[];
@@ -48,6 +49,27 @@ export interface Product {
     style?: string;
     tags?: string[];
 }
+
+// Shared shape mapper for the raw entity JSON returned by /products, /products/{id},
+// /products/search and /products/bestsellers - keeps the USD->INR conversion and
+// field selection in one place instead of repeating it at every call site.
+const mapRawProduct = (p: any): Product => ({
+    id: p.id,
+    name: p.name,
+    brand: p.brand,
+    description: p.description,
+    price: p.price * USD_TO_INR_RATE,
+    rating: p.rating,
+    image: p.images?.[0] || 'https://picsum.photos/300',
+    category: p.category,
+    images: p.images,
+    discount: p.discount,
+    originalPrice: p.originalPrice != null ? p.originalPrice * USD_TO_INR_RATE : undefined,
+    stock: p.stock,
+    colors: p.colors,
+    sizes: p.sizes,
+    specifications: p.specifications,
+});
 
 export interface PaginatedResponse<T> {
     content: T[];
@@ -98,25 +120,10 @@ export const productApi = {
                 throw new Error('Failed to fetch products');
             }
             const data = await response.json();
-            
+
             return {
                 ...data,
-                content: (data.content || []).map((p: any) => ({
-                    id: p.id,
-                    name: p.name,
-                    brand: p.brand,
-                    description: p.description,
-                    price: p.price * USD_TO_INR_RATE,
-                    rating: p.rating,
-                    image: p.images?.[0] || 'https://picsum.photos/300',
-                    category: p.category,
-                    images: p.images,
-                    discount: p.discount,
-                    stock: p.stock,
-                    colors: p.colors,
-                    sizes: p.sizes,
-                    specifications: p.specifications
-                }))
+                content: (data.content || []).map(mapRawProduct)
             };
         } catch (error) {
             console.warn('Backend API unavailable, using mock data:', error);
@@ -149,22 +156,7 @@ export const productApi = {
                 throw new Error('Failed to fetch product');
             }
             const p = await response.json();
-            return {
-                id: p.id,
-                name: p.name,
-                brand: p.brand,
-                description: p.description,
-                price: p.price * USD_TO_INR_RATE,
-                rating: p.rating,
-                image: p.images?.[0] || 'https://picsum.photos/300',
-                category: p.category,
-                images: p.images,
-                discount: p.discount,
-                stock: p.stock,
-                colors: p.colors,
-                sizes: p.sizes,
-                specifications: p.specifications
-            };
+            return mapRawProduct(p);
         } catch (error) {
             console.warn('Backend API unavailable, using mock data:', error);
             return mockApi.getProductById(id);
@@ -188,25 +180,10 @@ export const productApi = {
                 throw new Error('Failed to search products');
             }
             const data = await response.json();
-            
+
             return {
                 ...data,
-                content: (data.content || []).map((p: any) => ({
-                    id: p.id,
-                    name: p.name,
-                    brand: p.brand,
-                    description: p.description,
-                    price: p.price * USD_TO_INR_RATE,
-                    rating: p.rating,
-                    image: p.images?.[0] || 'https://picsum.photos/300',
-                    category: p.category,
-                    images: p.images,
-                    discount: p.discount,
-                    stock: p.stock,
-                    colors: p.colors,
-                    sizes: p.sizes,
-                    specifications: p.specifications
-                }))
+                content: (data.content || []).map(mapRawProduct)
             };
         } catch (error) {
             console.warn('Backend API unavailable, using mock data:', error);
@@ -248,6 +225,34 @@ export const productApi = {
         }
     },
 
+    getBestsellers: async (): Promise<Product[]> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/products/bestsellers`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch bestsellers');
+            }
+            const data = await response.json();
+            return (data || []).map(mapRawProduct);
+        } catch (error) {
+            console.warn('Failed to fetch bestsellers:', error);
+            return [];
+        }
+    },
+
+    getDeals: async (): Promise<Product[]> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/products/deals`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch deals');
+            }
+            const data = await response.json();
+            return (data || []).map(mapRawProduct);
+        } catch (error) {
+            console.warn('Failed to fetch deals:', error);
+            return [];
+        }
+    },
+
     // The backend's /products/search endpoint only matches name/description/brand,
     // not the colors field, so this pulls real products from clothing categories and
     // filters client-side by their `colors` array instead of relying on that endpoint.
@@ -270,5 +275,59 @@ export const productApi = {
         );
         const matches = pages.flatMap(pg => pg.content).filter(matchesColor);
         return matches.slice(0, limit);
+    },
+};
+
+export interface TryOnResult {
+    success: boolean;
+    resultImage?: string;
+    fallback?: boolean;
+    message?: string;
+}
+
+export const tryOnApi = {
+    // userPhoto/productImage: base64 (data URL or raw) / image URL respectively.
+    // Network failures are folded into the same {success:false} shape as a
+    // backend-reported fallback, so callers only need one branch to handle.
+    generateTryOn: async (userPhoto: string, productImage: string, productName: string): Promise<TryOnResult> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/tryon`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userPhoto, productImage, productName }),
+            });
+            if (!response.ok) {
+                throw new Error('Try-on request failed');
+            }
+            return await response.json();
+        } catch (error) {
+            console.warn('AI try-on failed:', error);
+            return { success: false, fallback: true, message: 'AI try-on unavailable right now — using manual positioning.' };
+        }
+    },
+};
+
+export interface VisualSearchDetection {
+    category?: string;
+    type?: string;
+    color?: string;
+    keywords?: string[];
+}
+
+export const visualSearchApi = {
+    search: async (imageBase64: string): Promise<{ detected: VisualSearchDetection | null; products: Product[] }> => {
+        const response = await fetch(`${API_BASE_URL}/visual-search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: imageBase64 }),
+        });
+        if (!response.ok) {
+            throw new Error('Visual search failed');
+        }
+        const data = await response.json();
+        return {
+            detected: data.detected || null,
+            products: (data.products || []).map(mapRawProduct),
+        };
     },
 };

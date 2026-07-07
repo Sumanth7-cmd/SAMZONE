@@ -22,6 +22,7 @@ const Cart = lazy(() => import('./pages/Cart'));
 const Wishlist = lazy(() => import('./pages/Wishlist'));
 const Compare = lazy(() => import('./pages/Compare'));
 const Admin = lazy(() => import('./pages/Admin'));
+const VisualSearch = lazy(() => import('./pages/VisualSearch'));
 
 // Loading component for lazy loaded routes
 const PageLoader = () => (
@@ -69,6 +70,9 @@ function App() {
 
                                     {/* Simple Try-On Interaction */}
                                     <Route path="/try-on-interaction" element={<SimpleTryOnInteraction />} />
+
+                                    {/* Visual Search */}
+                                    <Route path="/visual-search" element={<VisualSearch />} />
 
                                     {/* Cart */}
                                     <Route path="/cart" element={<Cart />} />
