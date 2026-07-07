@@ -15,6 +15,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -38,7 +39,15 @@ public class ChatService {
     private ProductRepository productRepository;
 
     private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate pairingRestTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public ChatService() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(15_000);
+        factory.setReadTimeout(15_000);
+        this.pairingRestTemplate = new RestTemplate(factory);
+    }
 
     private static final Set<String> STOP_WORDS = Set.of(
             "show", "me", "find", "search", "for", "some", "a", "an", "the", "i",
@@ -48,7 +57,18 @@ public class ChatService {
             "shirt", "pant", "kurta", "dress", "saree", "jeans", "top", "blouse",
             "outfit", "wear", "clothing", "fashion", "ethnic", "formal", "casual", "party",
             "hoodie", "sweatshirt", "suit", "blazer", "sherwani", "lehenga", "kurti",
-            "anarkali", "gown", "palazzo", "chinos");
+            "anarkali", "gown", "palazzo", "chinos",
+            "short", "skirt", "trouser", "tshirt", "t-shirt", "tee", "jacket",
+            "sweater", "cardigan", "coat", "legging", "salwar", "churidar", "tunic");
+
+    // Which garment side a keyword belongs to, used to pick a complementary
+    // category when someone asks "what goes with X" (Part A pairing queries).
+    private static final Set<String> TOP_GARMENTS = Set.of(
+            "shirt", "kurta", "top", "blouse", "hoodie", "sweatshirt", "blazer",
+            "tshirt", "t-shirt", "tee", "kurti", "sweater", "jacket", "suit", "cardigan");
+
+    private static final Set<String> BOTTOM_GARMENTS = Set.of(
+            "pant", "jeans", "trouser", "chinos", "palazzo", "skirt", "short", "legging");
 
     private static final Set<String> WOMEN_FASHION_KEYWORDS = Set.of(
             "dress", "saree", "blouse", "kurti", "women", "womens", "women's", "skirt", "gown",
@@ -69,7 +89,7 @@ public class ChatService {
             "what should i wear", "styling tip", "style tip", "goes with", "what goes with",
             "how to style", "what matches", "matching colors", "matching color",
             "what color matches", "what colour matches", "color match", "colour match",
-            "pair with", "pairs with");
+            "pair with", "pairs with", "what suits", "suits it", "suits this", "suits my");
 
     private static final Set<String> BASIC_COLORS = Set.of(
             "black", "white", "red", "blue", "green", "yellow", "purple", "pink",
@@ -78,11 +98,37 @@ public class ChatService {
     private static final Map<String, List<String>> COLOR_HARMONY = Map.ofEntries(
             Map.entry("red", List.of("Navy", "White", "Beige", "Grey")),
             Map.entry("navy", List.of("White", "Mustard", "Coral", "Grey")),
-            Map.entry("black", List.of("White", "Red", "Gold", "Any color")),
-            Map.entry("white", List.of("Navy", "Black", "Olive", "Any color")),
+            Map.entry("black", List.of("White", "Grey", "Red", "Any color")),
+            Map.entry("white", List.of("Navy", "Black", "Beige", "Any color")),
             Map.entry("green", List.of("Beige", "Brown", "White", "Navy")),
             Map.entry("yellow", List.of("Navy", "Grey", "White", "Purple")),
             Map.entry("blue", List.of("Orange", "White", "Grey", "Brown")));
+
+    // The seeded catalog's `colors` field only ever holds a handful of basic
+    // values (Black, White, Navy, Maroon, Beige, Green, Red, Pink, Yellow, Grey),
+    // but Gemini's suggested complementary colors are often fashion names
+    // (Mustard, Coral, Charcoal...) that never appear verbatim - map each down
+    // to the nearest basic catalog color so the DB lookup actually finds
+    // something. Mirrors frontend/src/services/api.ts's COLOR_FAMILY_FALLBACK.
+    private static final Map<String, List<String>> COLOR_FAMILY_FALLBACK = Map.ofEntries(
+            Map.entry("coral", List.of("red")),
+            Map.entry("peach", List.of("white", "red")),
+            Map.entry("mustard", List.of("green", "yellow")),
+            Map.entry("gold", List.of("white", "yellow")),
+            Map.entry("lavender", List.of("blue")),
+            Map.entry("teal", List.of("blue", "green")),
+            Map.entry("plum", List.of("red", "black")),
+            Map.entry("hot pink", List.of("pink", "red")),
+            Map.entry("emerald", List.of("green")),
+            Map.entry("forest green", List.of("green")),
+            Map.entry("olive", List.of("green")),
+            Map.entry("olive green", List.of("green")),
+            Map.entry("royal blue", List.of("blue")),
+            Map.entry("navy blue", List.of("navy", "blue")),
+            Map.entry("charcoal", List.of("black", "grey")),
+            Map.entry("cream", List.of("beige", "white")),
+            Map.entry("tan", List.of("beige", "brown")),
+            Map.entry("burgundy", List.of("maroon", "red")));
 
     private static final Map<String, List<String>> OCCASION_MAP = Map.of(
             "wedding", List.of("kurta", "sherwani", "formal", "ethnic"),
@@ -169,6 +215,22 @@ public class ChatService {
             return buildOutfitResponse(lower);
         }
 
+        // Direct category/garment request (e.g. "show me shorts", "I need hoodies") -
+        // resolve deterministically against the real catalog instead of depending on
+        // Gemini correctly guessing the specific sub-type within a broader category.
+        String directGarment = extractGarmentItem(lower);
+        if (directGarment != null) {
+            Double[] directPriceRange = extractPriceRange(lower);
+            List<Product> garmentResults = findFashionCategoryProducts(lower, directPriceRange);
+            if (!garmentResults.isEmpty()) {
+                return ChatResponse.builder()
+                        .reply(buildReply(lower, garmentResults, directPriceRange))
+                        .products(garmentResults)
+                        .success(true)
+                        .build();
+            }
+        }
+
         ChatIntent intent = extractIntent(message);
         if (intent != null && "advice".equalsIgnoreCase(intent.intent) && intent.reply != null && !intent.reply.isBlank()) {
             List<Product> products = findRelevantProducts(message, intent);
@@ -190,32 +252,45 @@ public class ChatService {
 
     private ChatResponse buildAdviceResponse(String lower) {
         String colorHint = BASIC_COLORS.stream().filter(lower::contains).findFirst().orElse(null);
-        List<String> harmonyColors = colorHint != null
-                ? COLOR_HARMONY.getOrDefault(colorHint, List.of())
-                : List.of();
+        String item = extractGarmentItemForAdvice(lower);
+        ComplementaryTarget target = complementaryTargetFor(item);
+
+        List<String> suggestedColors = null;
+        String aiExplanation = null;
+
+        if (colorHint != null) {
+            ColorPairingResponse aiResponse = callGeminiForColorPairing(colorHint, item, target.label);
+            if (aiResponse != null && aiResponse.colors != null && !aiResponse.colors.isEmpty()) {
+                suggestedColors = aiResponse.colors;
+                aiExplanation = aiResponse.explanation;
+            }
+        }
+
+        // Gemini unavailable/failed - fall back to the static hardcoded pairing table.
+        if (suggestedColors == null || suggestedColors.isEmpty()) {
+            suggestedColors = colorHint != null ? COLOR_HARMONY.getOrDefault(colorHint, List.of()) : List.of();
+        }
+
+        List<Product> products = new ArrayList<>();
+        for (String suggestedColor : suggestedColors) {
+            if (products.size() >= 6) {
+                break;
+            }
+            products.addAll(findByColorAndTarget(suggestedColor, target, 3));
+        }
+        if (products.isEmpty()) {
+            products = findFashionCategoryProducts(lower, null);
+        }
 
         String reply;
-        if (!harmonyColors.isEmpty()) {
-            reply = capitalize(colorHint) + " pairs beautifully with " + String.join(", ", harmonyColors)
+        if (aiExplanation != null && !aiExplanation.isBlank()) {
+            reply = aiExplanation;
+        } else if (!suggestedColors.isEmpty() && colorHint != null) {
+            reply = capitalize(colorHint) + " pairs beautifully with " + String.join(", ", suggestedColors)
                     + ". Here are some options to match:";
         } else {
             reply = "Here's a styling tip: keep one statement piece per outfit and balance it with neutral basics. "
                     + "Here are some products to get you started:";
-        }
-
-        List<Product> products = new ArrayList<>();
-        Pageable pageable = PageRequest.of(0, 3, Sort.by("rating").descending());
-        for (String harmonyColor : harmonyColors) {
-            if (products.size() >= 6) {
-                break;
-            }
-            List<Product> matches = productRepository
-                    .findByFilters("Men's Clothing", null, harmonyColor, null, null, null, pageable)
-                    .getContent();
-            products.addAll(matches);
-        }
-        if (products.isEmpty()) {
-            products = findFashionCategoryProducts(lower, null);
         }
 
         return ChatResponse.builder()
@@ -223,6 +298,137 @@ public class ChatService {
                 .products(products.stream().distinct().limit(6).collect(Collectors.toList()))
                 .success(true)
                 .build();
+    }
+
+    private String extractGarmentItem(String lower) {
+        return FASHION_KEYWORDS.stream()
+                .filter(k -> !NON_GARMENT_FASHION_WORDS.contains(k) && lower.contains(k))
+                .findFirst().orElse(null);
+    }
+
+    // "suit" (the garment) is a substring of "suits" (the verb in "what suits X"/
+    // "suits it"), so extractGarmentItem() would wrongly pick "suit" out of the
+    // ADVICE_KEYWORDS trigger phrase itself. Only buildAdviceResponse needs this -
+    // direct category asks like "show me shorts"/"show me suits" must keep matching
+    // plurals via plain .contains(), so extractGarmentItem itself stays untouched.
+    private String extractGarmentItemForAdvice(String lower) {
+        String withoutTrigger = lower;
+        for (String phrase : ADVICE_KEYWORDS) {
+            withoutTrigger = withoutTrigger.replace(phrase, " ");
+        }
+        return extractGarmentItem(withoutTrigger);
+    }
+
+    private static class ComplementaryTarget {
+        final String label;
+        final List<String> terms;
+
+        ComplementaryTarget(String label, List<String> terms) {
+            this.label = label;
+            this.terms = terms;
+        }
+    }
+
+    private ComplementaryTarget complementaryTargetFor(String item) {
+        if (item != null && TOP_GARMENTS.contains(item)) {
+            return new ComplementaryTarget("pants", List.of("jeans", "trouser", "pant", "chinos"));
+        }
+        if (item != null && BOTTOM_GARMENTS.contains(item)) {
+            return new ComplementaryTarget("a shirt or top", List.of("shirt", "top", "tshirt", "kurta"));
+        }
+        return new ComplementaryTarget("accessories", List.of());
+    }
+
+    @SuppressWarnings("unchecked")
+    private ColorPairingResponse callGeminiForColorPairing(String color, String item, String targetLabel) {
+        if (geminiApiKey == null || geminiApiKey.isBlank()) {
+            return null;
+        }
+        try {
+            String prompt = "Given a " + color + " " + (item != null ? item : "item")
+                    + ", suggest 2-3 specific complementary colors for " + targetLabel
+                    + " and explain briefly (1-2 sentences) why. Return ONLY valid JSON: "
+                    + "{ \"colors\": [\"...\"], \"explanation\": \"...\" }";
+
+            Map<String, Object> requestBody = Map.of(
+                    "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))),
+                    "generationConfig", Map.of(
+                            "responseMimeType", "application/json",
+                            "thinkingConfig", Map.of("thinkingBudget", 0)));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-goog-api-key", geminiApiKey);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+            ResponseEntity<Map> response = pairingRestTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+
+            Map<String, Object> body = response.getBody();
+            if (body == null || !body.containsKey("candidates")) {
+                return null;
+            }
+            List<Object> candidates = (List<Object>) body.get("candidates");
+            if (candidates.isEmpty()) {
+                return null;
+            }
+            Map<String, Object> candidate = (Map<String, Object>) candidates.get(0);
+            Map<String, Object> content = (Map<String, Object>) candidate.get("content");
+            List<Object> parts = (List<Object>) content.get("parts");
+            if (parts.isEmpty()) {
+                return null;
+            }
+            Map<String, Object> part = (Map<String, Object>) parts.get(0);
+            String text = (String) part.get("text");
+            if (text == null || text.isBlank()) {
+                return null;
+            }
+
+            return objectMapper.readValue(text, ColorPairingResponse.class);
+        } catch (Exception e) {
+            System.err.println("Gemini color-pairing API error: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private List<Product> findByColorAndTarget(String colorWord, ComplementaryTarget target, int limit) {
+        String colorLower = colorWord.toLowerCase();
+        List<String> colorCandidates = new ArrayList<>();
+        colorCandidates.add(colorLower);
+        colorCandidates.addAll(COLOR_FAMILY_FALLBACK.getOrDefault(colorLower, List.of()));
+
+        Pageable pageable = PageRequest.of(0, limit, Sort.by("rating").descending());
+
+        if (!target.terms.isEmpty()) {
+            for (String category : List.of("Men's Clothing", "Women's Clothing")) {
+                for (String term : target.terms) {
+                    List<Product> matches = productRepository
+                            .findByFilters(category, null, term, null, null, null, pageable)
+                            .getContent();
+                    if (matches.isEmpty()) {
+                        continue;
+                    }
+                    for (String colorCandidate : colorCandidates) {
+                        List<Product> colorFiltered = matches.stream()
+                                .filter(p -> matchesColor(p, colorCandidate))
+                                .collect(Collectors.toList());
+                        if (!colorFiltered.isEmpty()) {
+                            return colorFiltered;
+                        }
+                    }
+                }
+            }
+        }
+
+        for (String colorCandidate : colorCandidates) {
+            List<Product> results = productRepository
+                    .findByFilters("Accessories", null, colorCandidate, null, null, null, pageable)
+                    .getContent();
+            if (!results.isEmpty()) {
+                return results;
+            }
+        }
+        return List.of();
     }
 
     private ChatResponse buildOutfitResponse(String lower) {
@@ -513,9 +719,7 @@ public class ChatService {
         String secondaryCategory = isWomens ? "Men's Clothing" : "Women's Clothing";
 
         String colorHint = BASIC_COLORS.stream().filter(lower::contains).findFirst().orElse(null);
-        String garmentKeyword = FASHION_KEYWORDS.stream()
-                .filter(k -> !NON_GARMENT_FASHION_WORDS.contains(k) && lower.contains(k))
-                .findFirst().orElse(null);
+        String garmentKeyword = extractGarmentItem(lower);
 
         // Prefer matching the actual garment named in the message (e.g. "shirt", "kurta")
         // over just returning the top-rated item in the category, which can be unrelated.
@@ -600,6 +804,12 @@ public class ChatService {
     private double toUsd(String rupeeAmount) {
         String digits = rupeeAmount.replace(",", "");
         return Double.parseDouble(digits) / INR_TO_USD;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class ColorPairingResponse {
+        public List<String> colors;
+        public String explanation;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

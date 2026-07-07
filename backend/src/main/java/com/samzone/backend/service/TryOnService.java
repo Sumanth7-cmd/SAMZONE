@@ -66,7 +66,7 @@ public class TryOnService {
             }
             productImageBase64 = Base64.getEncoder().encodeToString(productBytes);
         } catch (Exception e) {
-            return TryOnResponse.fallback("Could not load the product image: " + e.getMessage());
+            return TryOnResponse.fallback("Could not load the product image for AI try-on — using manual positioning instead.");
         }
 
         try {
@@ -93,7 +93,10 @@ public class TryOnService {
             }
             return TryOnResponse.success(resultImage);
         } catch (Exception e) {
-            return TryOnResponse.fallback("AI try-on failed: " + e.getMessage());
+            // e.getMessage() on an HttpClientErrorException (e.g. Gemini 429/500)
+            // includes the entire raw response body verbatim - never surface that
+            // to the user, it renders as an unreadable wall of JSON in the UI.
+            return TryOnResponse.fallback("AI try-on is temporarily unavailable — using manual positioning instead.");
         }
     }
 
