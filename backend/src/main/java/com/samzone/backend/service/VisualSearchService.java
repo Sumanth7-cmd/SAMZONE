@@ -34,7 +34,7 @@ public class VisualSearchService {
     private static final int TIMEOUT_MS = 30_000;
     private static final int RESULT_LIMIT = 12;
     private static final String MODEL_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
 
     private static final List<String> FALLBACK_CATEGORIES = List.of(
             "Men's Clothing", "Women's Clothing", "Men's Footwear", "Accessories");

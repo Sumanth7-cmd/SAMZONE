@@ -301,7 +301,7 @@ public class ChatService {
 
     @SuppressWarnings("unchecked")
     private ChatIntent callGemini(String message) throws Exception {
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

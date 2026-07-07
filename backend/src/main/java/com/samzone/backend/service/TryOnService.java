@@ -16,17 +16,19 @@ import java.util.List;
 import java.util.Map;
 
 // Renders the user actually wearing the selected garment via Gemini's image
-// editing (gemini-2.0-flash-exp), instead of the client-side canvas overlay
-// in FixedWebcamTryOn.tsx. That overlay stays as the fallback path: it's what
-// the frontend switches to when this returns fallback=true (no key, quota
-// exhausted, model unavailable, or Gemini simply didn't return an image).
+// editing (gemini-2.5-flash-image, aka "Nano Banana" - gemini-2.0-flash-exp
+// was retired and 404s on this API version), instead of the client-side
+// canvas overlay in FixedWebcamTryOn.tsx. That overlay stays as the fallback
+// path: it's what the frontend switches to when this returns fallback=true
+// (no key, quota exhausted, model unavailable, or Gemini simply didn't
+// return an image).
 @Service
 public class TryOnService {
 
     private static final long MAX_PHOTO_BYTES = 2L * 1024 * 1024;
     private static final int TIMEOUT_MS = 60_000;
     private static final String MODEL_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent";
 
     @Value("${gemini.api.key:}")
     private String geminiApiKey;

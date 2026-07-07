@@ -23,10 +23,16 @@ import java.util.Map;
 @RequestMapping("/api/admin")
 public class AdminController {
 
-    // A product name is "corrupted" if it's mostly non-ASCII (garbled script
-    // from the Myntra import) or starts with the literal "[?????]" pattern.
+    // A product name is "corrupted" if it's mostly non-ASCII (garbled script),
+    // starts with the literal "[?????]" pattern, or has a run of 3+ '?' anywhere
+    // (catches embedded corruption like "ecco(???) Men's Golf Shoe" or
+    // "Lowepro ?????? ???????? ?????????????", not just prefix-anchored cases).
+    // These come from source listings (Amazon JP/Arabic-locale scrapes) whose
+    // original script (Japanese/Arabic) was already lossily replaced with
+    // literal '?' before this data ever reached our CSVs - unrecoverable, so
+    // cleanup-corrupted deletes rather than attempting to re-decode them.
     private static final String CORRUPTED_NAME_PREDICATE =
-            "(name ~ '^\\[?\\?+' OR " +
+            "(name ~ '^\\[?\\?+' OR name ~ '\\?{3,}' OR " +
             "length(regexp_replace(name, '[^\\x20-\\x7E]', '', 'g')) < length(name) * 0.7)";
 
     @Autowired
