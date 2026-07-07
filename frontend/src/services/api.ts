@@ -331,3 +331,29 @@ export const visualSearchApi = {
         };
     },
 };
+
+export interface StylistPick {
+    product: Product;
+    reason: string;
+}
+
+export const stylistApi = {
+    completeLook: async (productId: number): Promise<{ product: Product; picks: StylistPick[] }> => {
+        const response = await fetch(`${API_BASE_URL}/stylist/complete-look`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId }),
+        });
+        if (!response.ok) {
+            throw new Error('Complete the Look failed');
+        }
+        const data = await response.json();
+        return {
+            product: mapRawProduct(data.product),
+            picks: (data.picks || []).map((p: any) => ({
+                product: mapRawProduct(p.product),
+                reason: p.reason,
+            })),
+        };
+    },
+};

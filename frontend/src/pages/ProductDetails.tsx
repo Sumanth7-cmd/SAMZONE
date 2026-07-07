@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { productApi } from '../services/api';
-import type { Product } from '../services/api';
-import { ArrowLeft, Star, Heart, Share2, ShoppingCart } from 'lucide-react';
+import { productApi, stylistApi } from '../services/api';
+import type { Product, StylistPick } from '../services/api';
+import { ArrowLeft, Star, Heart, Share2, ShoppingCart, Sparkles, Eye } from 'lucide-react';
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
 import { toggleWishlist, isWishlisted } from '../utils/wishlist';
@@ -20,6 +20,9 @@ const ProductDetails: React.FC = () => {
     const [quantity, setQuantity] = useState(1);
     const [liked, setLiked] = useState(false);
     const [showSizeGuide, setShowSizeGuide] = useState(false);
+    const [stylistLoading, setStylistLoading] = useState(false);
+    const [stylistPicks, setStylistPicks] = useState<StylistPick[] | null>(null);
+    const [stylistError, setStylistError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -43,9 +46,35 @@ const ProductDetails: React.FC = () => {
         fetchProduct();
     }, [id]);
 
-    const discountedPrice = product?.discount 
-        ? product.price * (1 - product.discount / 100) 
+    const discountedPrice = product?.discount
+        ? product.price * (1 - product.discount / 100)
         : product?.price;
+
+    const handleCompleteLook = async () => {
+        if (!product) return;
+        setStylistLoading(true);
+        setStylistError(null);
+        try {
+            const result = await stylistApi.completeLook(product.id);
+            setStylistPicks(result.picks);
+        } catch {
+            setStylistError("Couldn't style this look right now. Please try again.");
+        } finally {
+            setStylistLoading(false);
+        }
+    };
+
+    const handleAddPickToCart = (pick: Product) => {
+        addToCart({
+            id: pick.id,
+            name: pick.name,
+            price: pick.price,
+            image: getProductImage(pick),
+            size: pick.sizes?.[0],
+            color: pick.colors?.[0],
+            stock: pick.stock,
+        });
+    };
 
     if (loading) {
         return (
@@ -381,6 +410,92 @@ const ProductDetails: React.FC = () => {
                             </div>
                         </div>
                     </div>
+                </div>
+
+                {/* Complete the Look */}
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden mt-8 p-8">
+                    <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                            <Sparkles className="w-6 h-6 text-purple-600" />
+                            Complete the Look
+                        </h2>
+                        {!stylistPicks && (
+                            <button
+                                onClick={handleCompleteLook}
+                                disabled={stylistLoading}
+                                className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium hover:from-purple-700 hover:to-pink-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                {stylistLoading ? 'Styling your look...' : '✨ Complete the Look'}
+                            </button>
+                        )}
+                    </div>
+
+                    {stylistLoading && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <div key={i} className="bg-gray-200 animate-pulse rounded-xl h-64" />
+                            ))}
+                        </div>
+                    )}
+
+                    {stylistError && <p className="text-red-600">{stylistError}</p>}
+
+                    {stylistPicks && stylistPicks.length > 0 && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            {/* Main item, for context */}
+                            <div className="bg-gray-50 rounded-xl border-2 border-purple-200 overflow-hidden flex flex-col">
+                                <img
+                                    src={getProductImage(product)}
+                                    alt={product.name}
+                                    className="w-full h-40 object-cover"
+                                    onError={(e) => { e.currentTarget.src = PLACEHOLDER; e.currentTarget.onerror = null; }}
+                                />
+                                <div className="p-3 flex flex-col flex-1">
+                                    <span className="text-xs font-semibold text-purple-600 uppercase mb-1">This item</span>
+                                    <h4 className="text-sm font-semibold text-gray-900 line-clamp-2">{product.name}</h4>
+                                </div>
+                            </div>
+
+                            {stylistPicks.map((pick) => (
+                                <div key={pick.product.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col shadow-sm">
+                                    <img
+                                        src={getProductImage(pick.product)}
+                                        alt={pick.product.name}
+                                        className="w-full h-40 object-cover cursor-pointer"
+                                        onClick={() => navigate(`/product/${pick.product.id}`)}
+                                        onError={(e) => { e.currentTarget.src = PLACEHOLDER; e.currentTarget.onerror = null; }}
+                                    />
+                                    <div className="p-3 flex flex-col flex-1">
+                                        <p className="text-xs text-gray-500 uppercase mb-1 truncate">{pick.product.brand}</p>
+                                        <h4 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-1">{pick.product.name}</h4>
+                                        <span className="text-sm font-bold text-gray-900 mb-2">
+                                            ₹{pick.product.price.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                        </span>
+                                        <p className="text-xs text-gray-600 italic mb-3 flex-1">{pick.reason}</p>
+                                        <div className="flex gap-2 mt-auto">
+                                            <button
+                                                onClick={() => navigate(`/product/${pick.product.id}`)}
+                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-xs transition-colors"
+                                            >
+                                                <Eye className="w-3 h-3" /> View
+                                            </button>
+                                            <button
+                                                onClick={() => handleAddPickToCart(pick.product)}
+                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 text-xs transition-colors"
+                                            >
+                                                <ShoppingCart className="w-3 h-3" /> Add
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {stylistPicks && stylistPicks.length === 0 && (
+                        <p className="text-gray-500">No complementary items found for this product yet.</p>
+                    )}
                 </div>
             </div>
         </div>
