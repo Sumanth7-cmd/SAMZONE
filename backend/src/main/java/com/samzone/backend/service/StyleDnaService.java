@@ -119,6 +119,14 @@ public class StyleDnaService {
     private static final List<String> WOMEN_FOOTWEAR_TERMS =
             List.of("heel", "sandal", "flat", "sneaker", "footwear");
 
+    // The "Accessories" DB category is contaminated with non-fashion inventory
+    // (trolley bags, table lamps, placemats) from a different import batch -
+    // querying it untermed for the generic accessory slot pulled a table lamp
+    // and a set of placemats into a fashion mood board. Scope to genuine
+    // fashion-accessory terms that have real hits in the catalog.
+    private static final List<String> FASHION_ACCESSORY_TERMS =
+            List.of("bag", "watch", "sunglasses", "scarf", "jewelry", "wallet", "belt");
+
     public Map<String, Object> buildProfile(StyleDnaAnswers answers) {
         StyleDnaProfile profile = callGemini(answers);
         if (profile == null || profile.archetypes == null || profile.archetypes.isEmpty()) {
@@ -318,12 +326,12 @@ public class StyleDnaService {
                         new ProductSlot("Women's Clothing", termsFor(WOMEN_TOP_TERMS, WOMEN_TOP_DEFAULT, occasionKey)),
                         new ProductSlot("Women's Clothing", termsFor(WOMEN_BOTTOM_TERMS, WOMEN_BOTTOM_DEFAULT, occasionKey)),
                         new ProductSlot("Accessories", WOMEN_FOOTWEAR_TERMS),
-                        new ProductSlot("Accessories", List.of()))
+                        new ProductSlot("Accessories", FASHION_ACCESSORY_TERMS))
                 : List.of(
                         new ProductSlot("Men's Clothing", termsFor(MEN_TOP_TERMS, MEN_TOP_DEFAULT, occasionKey)),
                         new ProductSlot("Men's Clothing", termsFor(MEN_BOTTOM_TERMS, MEN_BOTTOM_DEFAULT, occasionKey)),
                         new ProductSlot("Men's Footwear", List.of()),
-                        new ProductSlot("Accessories", List.of()));
+                        new ProductSlot("Accessories", FASHION_ACCESSORY_TERMS));
 
         List<List<Product>> perSlotCandidates = new ArrayList<>();
         for (ProductSlot slot : slots) {
