@@ -1,134 +1,132 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Heart, ShoppingCart, Star, Eye, Sparkles, Filter, Search, TrendingUp, Scale } from 'lucide-react';
-import { productApi, type Product } from '../services/api';
-import { getProductImage, PLACEHOLDER } from '../utils/productImage';
-import { addToCart } from '../utils/cart';
-import { toggleWishlist, isWishlisted } from '../utils/wishlist';
-import { useCompare } from '../context/CompareContext';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Filter, Search, ShoppingCart, Sparkles, TrendingUp } from 'lucide-react';
+import {
+    searchProducts,
+    CATEGORY_OPTIONS,
+    GENDER_OPTIONS,
+    type CatalogProduct,
+    type ProductSort,
+} from '../services/productsSearchApi';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 24;
+const SEARCH_DEBOUNCE_MS = 400;
 
-const sortOptions = [
-    { id: 'name,asc', name: 'Featured' },
-    { id: 'price,asc', name: 'Price: Low to High' },
-    { id: 'price,desc', name: 'Price: High to Low' },
-    { id: 'rating,desc', name: 'Highest Rated' },
-    { id: 'id,desc', name: 'Newest First' },
+const SORT_OPTIONS: { value: ProductSort | ''; label: string }[] = [
+    { value: '', label: 'Relevance' },
+    { value: 'price_asc', label: 'Price: Low to High' },
+    { value: 'price_desc', label: 'Price: High to Low' },
+    { value: 'newest', label: 'Newest First' },
 ];
 
+function parsePage(searchParams: URLSearchParams): number {
+    const raw = parseInt(searchParams.get('page') || '1', 10);
+    return Number.isFinite(raw) && raw > 0 ? raw : 1;
+}
+
 const CleanProductGrid: React.FC = () => {
-    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [totalPages, setTotalPages] = useState(0);
-    const [totalElements, setTotalElements] = useState(0);
-    const [categories, setCategories] = useState<string[]>([]);
+    // Filters/page are derived straight from the URL on every render - the
+    // single source of truth - rather than mirrored into local useState. That
+    // mirroring is what caused the old stale-page/stale-filter bug: since
+    // React Router keeps this component mounted across /shop?... URL changes,
+    // a one-time useState initializer never picks up a later URL change.
+    const q = searchParams.get('q') || '';
+    const category = searchParams.get('category') || '';
+    const gender = searchParams.get('gender') || '';
+    const minPrice = searchParams.get('minPrice') || '';
+    const maxPrice = searchParams.get('maxPrice') || '';
+    const sort = (searchParams.get('sort') || '') as ProductSort | '';
+    const page = parsePage(searchParams);
+
+    const [searchInput, setSearchInput] = useState(q);
+    const [products, setProducts] = useState<CatalogProduct[]>([]);
+    const [totalCount, setTotalCount] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
-    const [searchInput, setSearchInput] = useState(searchParams.get('q') || '');
-    const [debouncedSearch, setDebouncedSearch] = useState(searchInput);
-    const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
-    const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
-    const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
-    const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'name,asc');
-    const [page, setPage] = useState(() => parseInt(searchParams.get('page') || '0', 10));
-    const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
-
+    // Keep the search box in sync if q changes from elsewhere (e.g. a navbar
+    // link to /shop?q=sneakers) without fighting the user mid-keystroke.
     useEffect(() => {
-        productApi.getCategories().then(setCategories).catch(() => setCategories([]));
-    }, []);
+        setSearchInput(q);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [q]);
 
+    // Debounce the search box: 400ms after typing stops, push it into the URL.
     useEffect(() => {
-        const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
-        return () => clearTimeout(timer);
+        if (searchInput === q) return;
+        const timeout = setTimeout(() => {
+            updateParams({ q: searchInput || null, page: null });
+        }, SEARCH_DEBOUNCE_MS);
+        return () => clearTimeout(timeout);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchInput]);
 
-    useEffect(() => {
-        setPage(0);
-    }, [debouncedSearch, selectedCategory, minPrice, maxPrice, sortBy]);
+    function updateParams(changes: Record<string, string | null>) {
+        const next = new URLSearchParams(searchParams);
+        for (const [key, value] of Object.entries(changes)) {
+            if (value === null || value === '') {
+                next.delete(key);
+            } else {
+                next.set(key, value);
+            }
+        }
+        setSearchParams(next, { replace: true });
+    }
 
-    const loadProducts = useCallback(async () => {
+    // Any filter change (not page navigation itself) sends the user back to page 1.
+    function handleFilterChange(changes: Record<string, string | null>) {
+        updateParams({ ...changes, page: null });
+    }
+
+    useEffect(() => {
+        let cancelled = false;
         setLoading(true);
         setError(false);
-        try {
-            const [sortField, sortDir] = sortBy.split(',');
-            const filters = {
-                category: selectedCategory !== 'all' ? selectedCategory : undefined,
-                minPrice: minPrice ? Number(minPrice) : undefined,
-                maxPrice: maxPrice ? Number(maxPrice) : undefined,
-                sortBy: sortField,
-                sortDir: sortDir as 'asc' | 'desc',
-            };
 
-            const result = debouncedSearch
-                ? await productApi.searchProducts(debouncedSearch, page, PAGE_SIZE)
-                : await productApi.getProducts(page, PAGE_SIZE, filters);
+        searchProducts({
+            q: q || undefined,
+            category: category || undefined,
+            gender: gender || undefined,
+            minPrice: minPrice ? Number(minPrice) : undefined,
+            maxPrice: maxPrice ? Number(maxPrice) : undefined,
+            sort: sort || undefined,
+            page,
+            pageSize: PAGE_SIZE,
+        })
+            .then((result) => {
+                if (cancelled) return;
+                setProducts(result.products);
+                setTotalCount(result.totalCount);
+                setTotalPages(result.totalPages);
+            })
+            .catch(() => {
+                if (!cancelled) setError(true);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
 
-            setProducts(result.content);
-            setTotalPages(result.totalPages);
-            setTotalElements(result.totalElements);
-        } catch {
-            setError(true);
-        } finally {
-            setLoading(false);
-        }
-    }, [debouncedSearch, selectedCategory, minPrice, maxPrice, sortBy, page]);
-
-    useEffect(() => {
-        loadProducts();
-    }, [loadProducts]);
-
-    // Keep filters/sort/page in the URL so a refresh or shared link restores them
-    useEffect(() => {
-        const params = new URLSearchParams();
-        if (debouncedSearch) params.set('q', debouncedSearch);
-        if (selectedCategory !== 'all') params.set('category', selectedCategory);
-        if (minPrice) params.set('minPrice', minPrice);
-        if (maxPrice) params.set('maxPrice', maxPrice);
-        if (sortBy !== 'name,asc') params.set('sort', sortBy);
-        if (page > 0) params.set('page', page.toString());
-        setSearchParams(params, { replace: true });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [debouncedSearch, selectedCategory, minPrice, maxPrice, sortBy, page]);
-
-    const handleLike = (productId: number) => {
-        const nowLiked = toggleWishlist(productId);
-        setLikedIds((prev) => {
-            const next = new Set(prev);
-            if (nowLiked) next.add(productId);
-            else next.delete(productId);
-            return next;
-        });
-    };
-
-    const handleAddToCart = (product: Product) => {
-        addToCart({
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            image: getProductImage(product),
-            size: product.sizes?.[0],
-            color: product.colors?.[0],
-            stock: product.stock,
-        });
-    };
+        return () => {
+            cancelled = true;
+        };
+    }, [q, category, gender, minPrice, maxPrice, sort, page]);
 
     const clearFilters = () => {
         setSearchInput('');
-        setSelectedCategory('all');
-        setMinPrice('');
-        setMaxPrice('');
-        setSortBy('name,asc');
-        setSearchParams({});
+        setSearchParams({}, { replace: true });
+    };
+
+    const goToPage = (n: number) => {
+        updateParams({ page: n > 1 ? String(n) : null });
     };
 
     const pageNumbers = (): (number | '...')[] => {
-        if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i);
-        const nums = new Set([0, totalPages - 1, page, page - 1, page + 1]);
-        const sorted = Array.from(nums).filter((n) => n >= 0 && n < totalPages).sort((a, b) => a - b);
+        if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+        const nums = new Set([1, totalPages, page, page - 1, page + 1]);
+        const sorted = Array.from(nums).filter((n) => n >= 1 && n <= totalPages).sort((a, b) => a - b);
         const result: (number | '...')[] = [];
         let prev: number | null = null;
         for (const n of sorted) {
@@ -139,146 +137,43 @@ const CleanProductGrid: React.FC = () => {
         return result;
     };
 
-    const { toggleCompare, isComparing, canAddMore, maxCompare } = useCompare();
-
-    const ProductCard = ({ product }: { product: Product }) => {
-        const isLiked = likedIds.has(product.id) || isWishlisted(product.id);
-        const comparing = isComparing(product.id);
-        const discountedPrice = product.discount
-            ? product.price * (1 - product.discount / 100)
-            : product.price;
-
-        return (
-            <div className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 h-full flex flex-col">
-                <div className="relative overflow-hidden cursor-pointer" onClick={() => navigate(`/product/${product.id}`)}>
-                    <img
-                        src={getProductImage(product)}
-                        alt={product.name}
-                        className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                        onError={(e) => {
-                            e.currentTarget.src = PLACEHOLDER;
-                            e.currentTarget.onerror = null;
-                        }}
-                    />
-
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/product/${product.id}`);
-                            }}
-                            className="bg-white text-gray-800 p-2 rounded-full shadow-lg hover:bg-gray-100 transition-colors mr-2"
-                        >
-                            <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleLike(product.id);
-                            }}
-                            className={`p-2 rounded-full shadow-lg transition-colors ${
-                                isLiked
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-white text-gray-800 hover:bg-gray-100'
-                            }`}
-                        >
-                            <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-                        </button>
-                    </div>
-
-                    {(product.discount ?? 0) > 0 && (
-                        <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-                            -{Math.round(product.discount)}%
-                        </div>
-                    )}
-
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            toggleCompare(product);
-                        }}
-                        disabled={!comparing && !canAddMore}
-                        title={!comparing && !canAddMore ? `You can compare up to ${maxCompare} products` : 'Add to compare'}
-                        className={`absolute bottom-3 left-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow transition-colors ${
-                            comparing
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-white/90 text-gray-700 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed'
-                        }`}
-                    >
-                        <Scale className="w-3 h-3" />
-                        Compare
-                    </button>
-
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1">
-                        <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                        <span className="text-xs font-medium">{product.rating?.toFixed(1)}</span>
-                    </div>
-                </div>
-
-                <div className="p-4 flex flex-col flex-1">
-                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1 truncate">
-                        {product.brand}
-                    </p>
-
-                    <h3
-                        className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 leading-tight cursor-pointer min-h-[3.5rem]"
-                        onClick={() => navigate(`/product/${product.id}`)}
-                    >
-                        {product.name}
-                    </h3>
-
-                    <div className="flex items-center justify-between mb-3">
-                        <div>
-                            {product.discount && product.discount > 0 ? (
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xl font-bold text-gray-900">
-                                        ₹{discountedPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                                    </span>
-                                    <span className="text-sm text-gray-500 line-through">
-                                        ₹{product.price.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                                    </span>
-                                </div>
-                            ) : (
-                                <span className="text-xl font-bold text-gray-900">
-                                    ₹{product.price.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    {product.colors && product.colors.length > 0 && (
-                        <div className="flex items-center gap-2 mb-3">
-                            <span className="text-xs text-gray-500">Colors:</span>
-                            <div className="flex gap-1">
-                                {product.colors.slice(0, 3).map((color, index) => (
-                                    <div
-                                        key={index}
-                                        className="w-4 h-4 rounded-full border border-gray-300"
-                                        style={{ backgroundColor: color }}
-                                        title={color}
-                                    />
-                                ))}
-                                {product.colors.length > 3 && (
-                                    <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100 flex items-center justify-center text-xs text-gray-600">
-                                        +{product.colors.length - 3}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    <button
-                        onClick={() => handleAddToCart(product)}
-                        className="mt-auto w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-2 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 flex items-center justify-center gap-2 group-hover:shadow-lg"
-                    >
-                        <ShoppingCart className="w-4 h-4" />
-                        Add to Cart
-                    </button>
-                </div>
+    const ProductCard = ({ product }: { product: CatalogProduct }) => (
+        <div className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 h-full flex flex-col">
+            <div className="relative overflow-hidden">
+                <img
+                    src={product.image_url}
+                    alt={product.product_name}
+                    className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                />
             </div>
-        );
-    };
+
+            <div className="p-4 flex flex-col flex-1">
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1 truncate">
+                    {product.article_type}
+                </p>
+
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 leading-tight min-h-[3.5rem]">
+                    {product.product_name}
+                </h3>
+
+                <div className="flex items-center justify-between mb-3">
+                    <span className="text-xl font-bold text-gray-900">
+                        ₹{product.price.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </span>
+                </div>
+
+                <button
+                    disabled
+                    title="Cart isn't wired up for this collection yet - coming soon"
+                    className="mt-auto w-full bg-gray-200 text-gray-500 py-2 rounded-lg flex items-center justify-center gap-2 cursor-not-allowed"
+                >
+                    <ShoppingCart className="w-4 h-4" />
+                    Add to Cart
+                </button>
+            </div>
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -292,7 +187,7 @@ const CleanProductGrid: React.FC = () => {
                             </h1>
                             <div className="flex items-center gap-1 text-sm text-gray-500">
                                 <TrendingUp className="w-4 h-4" />
-                                <span>{totalElements.toLocaleString('en-IN')} Products</span>
+                                <span>{totalCount.toLocaleString('en-IN')} Products</span>
                             </div>
                         </div>
 
@@ -312,15 +207,26 @@ const CleanProductGrid: React.FC = () => {
                         <div className="flex items-center gap-2">
                             <Filter className="w-4 h-4 text-gray-500" />
                             <select
-                                value={selectedCategory}
-                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                value={category}
+                                onChange={(e) => handleFilterChange({ category: e.target.value || null })}
                                 className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                             >
-                                <option value="all">All Products</option>
-                                {categories.map((category) => (
-                                    <option key={category} value={category}>
-                                        {category}
-                                    </option>
+                                <option value="">All Categories</option>
+                                {CATEGORY_OPTIONS.map((c) => (
+                                    <option key={c} value={c}>{c}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <select
+                                value={gender}
+                                onChange={(e) => handleFilterChange({ gender: e.target.value || null })}
+                                className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                                <option value="">All Genders</option>
+                                {GENDER_OPTIONS.map((g) => (
+                                    <option key={g} value={g}>{g}</option>
                                 ))}
                             </select>
                         </div>
@@ -331,7 +237,7 @@ const CleanProductGrid: React.FC = () => {
                                 type="number"
                                 placeholder="Min"
                                 value={minPrice}
-                                onChange={(e) => setMinPrice(e.target.value)}
+                                onChange={(e) => handleFilterChange({ minPrice: e.target.value || null })}
                                 className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                             />
                             <span className="text-gray-400">-</span>
@@ -339,7 +245,7 @@ const CleanProductGrid: React.FC = () => {
                                 type="number"
                                 placeholder="Max"
                                 value={maxPrice}
-                                onChange={(e) => setMaxPrice(e.target.value)}
+                                onChange={(e) => handleFilterChange({ maxPrice: e.target.value || null })}
                                 className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                             />
                         </div>
@@ -347,14 +253,12 @@ const CleanProductGrid: React.FC = () => {
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-500">Sort:</span>
                             <select
-                                value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value)}
+                                value={sort}
+                                onChange={(e) => handleFilterChange({ sort: e.target.value || null })}
                                 className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                             >
-                                {sortOptions.map((option) => (
-                                    <option key={option.id} value={option.id}>
-                                        {option.name}
-                                    </option>
+                                {SORT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
                             </select>
                         </div>
@@ -381,7 +285,7 @@ const CleanProductGrid: React.FC = () => {
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">Something went wrong</h3>
                         <p className="text-gray-600 mb-4">We couldn't load products. Please try again.</p>
                         <button
-                            onClick={loadProducts}
+                            onClick={() => setSearchParams(new URLSearchParams(searchParams), { replace: true })}
                             className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
                         >
                             Retry
@@ -392,12 +296,10 @@ const CleanProductGrid: React.FC = () => {
                         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Search className="w-8 h-8 text-gray-400" />
                         </div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
-                        <p className="text-gray-600 mb-4">
-                            {debouncedSearch
-                                ? `No products found for '${debouncedSearch}'. Try a different search term.`
-                                : 'Try adjusting your search or filters'}
-                        </p>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            {q ? `No results found for "${q}"` : 'No products found'}
+                        </h3>
+                        <p className="text-gray-600 mb-4">Try adjusting your search or filters</p>
                         <button
                             onClick={clearFilters}
                             className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
@@ -416,34 +318,30 @@ const CleanProductGrid: React.FC = () => {
                         {totalPages > 1 && (
                             <div className="flex justify-center items-center gap-2 mt-12">
                                 <button
-                                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                                    disabled={page === 0}
+                                    onClick={() => goToPage(Math.max(1, page - 1))}
+                                    disabled={page === 1}
                                     className="px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
                                 >
                                     Prev
                                 </button>
                                 {pageNumbers().map((n, i) =>
                                     n === '...' ? (
-                                        <span key={`gap-${i}`} className="px-2 text-gray-400">
-                                            ...
-                                        </span>
+                                        <span key={`gap-${i}`} className="px-2 text-gray-400">...</span>
                                     ) : (
                                         <button
                                             key={n}
-                                            onClick={() => setPage(n)}
+                                            onClick={() => goToPage(n)}
                                             className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                                                n === page
-                                                    ? 'bg-purple-600 text-white'
-                                                    : 'hover:bg-gray-100 text-gray-700'
+                                                n === page ? 'bg-purple-600 text-white' : 'hover:bg-gray-100 text-gray-700'
                                             }`}
                                         >
-                                            {n + 1}
+                                            {n}
                                         </button>
                                     )
                                 )}
                                 <button
-                                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                                    disabled={page >= totalPages - 1}
+                                    onClick={() => goToPage(Math.min(totalPages, page + 1))}
+                                    disabled={page >= totalPages}
                                     className="px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-100"
                                 >
                                     Next
