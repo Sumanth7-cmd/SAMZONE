@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Camera, X, Palette, User, CheckCircle, Sparkles } from 'lucide-react';
 import { productApi } from '../services/api';
 import type { Product } from '../services/api';
-import { getProductImage } from '../utils/productImage';
+import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
 import { trackProductInteraction } from '../services/aiShoppingFeatures';
 
@@ -676,7 +676,7 @@ const SkinToneAnalysis: React.FC = () => {
                                                         className="w-full h-20 object-cover rounded mb-2"
                                                         loading="lazy"
                                                         onError={(e) => {
-                                                            e.currentTarget.src = 'https://placehold.co/300x300?text=No+Image';
+                                                            e.currentTarget.src = PLACEHOLDER;
                                                             e.currentTarget.onerror = null;
                                                         }}
                                                     />

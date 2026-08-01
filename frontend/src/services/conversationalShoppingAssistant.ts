@@ -32,46 +32,47 @@ const GREETING_RESPONSES = [
 ];
 
 const CATEGORY_HINTS: Array<{ keyword: string; category: string; label: string }> = [
-  // Clothing – women
-  { keyword: 'dress', category: "Women's Clothing", label: 'dresses' },
-  { keyword: 'kurta', category: "Women's Clothing", label: 'kurtas' },
-  { keyword: 'kurti', category: "Women's Clothing", label: 'kurtis' },
-  { keyword: 'saree', category: "Women's Clothing", label: 'sarees' },
-  { keyword: 'blouse', category: "Women's Clothing", label: 'blouses' },
-  { keyword: 'salwar', category: "Women's Clothing", label: 'salwar suits' },
-  { keyword: 'lehenga', category: "Women's Clothing", label: 'lehengas' },
-  { keyword: 'gown', category: "Women's Clothing", label: 'gowns' },
-  { keyword: 'top', category: "Women's Clothing", label: 'tops' },
-  { keyword: 'skirt', category: "Women's Clothing", label: 'skirts' },
-  // Clothing – men
-  { keyword: 'shirt', category: "Men's Clothing", label: 'shirts' },
-  { keyword: 'shirts', category: "Men's Clothing", label: 'shirts' },
-  { keyword: 'tshirt', category: "Men's Clothing", label: 'T-shirts' },
-  { keyword: 't-shirt', category: "Men's Clothing", label: 'T-shirts' },
-  { keyword: 'jeans', category: "Men's Clothing", label: 'jeans' },
-  { keyword: 'trouser', category: "Men's Clothing", label: 'trousers' },
-  { keyword: 'sherwani', category: "Men's Clothing", label: 'sherwanis' },
-  { keyword: 'blazer', category: "Men's Clothing", label: 'blazers' },
-  { keyword: 'suit', category: "Men's Clothing", label: 'suits' },
-  { keyword: 'hoodie', category: "Men's Clothing", label: 'hoodies' },
-  { keyword: 'jacket', category: "Men's Clothing", label: 'jackets' },
+  // Clothing – dresses & tops
+  { keyword: 'dress', category: "Dresses", label: 'dresses' },
+  { keyword: 'kurta', category: "Kurtas", label: 'kurtas' },
+  { keyword: 'kurti', category: "Kurtas", label: 'kurtis' },
+  { keyword: 'saree', category: "Sarees", label: 'sarees' },
+  { keyword: 'blouse', category: "Blouses", label: 'blouses' },
+  { keyword: 'salwar', category: "Salwar", label: 'salwar suits' },
+  { keyword: 'lehenga', category: "Lehenga", label: 'lehengas' },
+  { keyword: 'gown', category: "Gowns", label: 'gowns' },
+  { keyword: 'top', category: "Tops", label: 'tops' },
+  { keyword: 'skirt', category: "Skirts", label: 'skirts' },
+  // Clothing – shirts & bottoms
+  { keyword: 'shirt', category: "Shirts", label: 'shirts' },
+  { keyword: 'shirts', category: "Shirts", label: 'shirts' },
+  { keyword: 'tshirt', category: "T-Shirt", label: 'T-shirts' },
+  { keyword: 't-shirt', category: "T-Shirt", label: 'T-shirts' },
+  { keyword: 'jeans', category: "Jeans", label: 'jeans' },
+  { keyword: 'trouser', category: "Trousers", label: 'trousers' },
+  { keyword: 'trousers', category: "Trousers", label: 'trousers' },
+  { keyword: 'sherwani', category: "Sherwanis", label: 'sherwanis' },
+  { keyword: 'blazer', category: "Blazers", label: 'blazers' },
+  { keyword: 'suit', category: "Suits", label: 'suits' },
+  { keyword: 'hoodie', category: "Hoodies", label: 'hoodies' },
+  { keyword: 'jacket', category: "Jackets", label: 'jackets' },
   // Footwear
-  { keyword: 'shoe', category: "Men's Footwear", label: 'shoes' },
-  { keyword: 'shoes', category: "Men's Footwear", label: 'shoes' },
-  { keyword: 'sneaker', category: "Men's Footwear", label: 'sneakers' },
-  { keyword: 'sneakers', category: "Men's Footwear", label: 'sneakers' },
-  { keyword: 'sandal', category: "Women's Footwear", label: 'sandals' },
-  { keyword: 'heels', category: "Women's Footwear", label: 'heels' },
-  { keyword: 'flat', category: "Women's Footwear", label: 'flats' },
+  { keyword: 'shoe', category: "Footwear", label: 'shoes' },
+  { keyword: 'shoes', category: "Footwear", label: 'shoes' },
+  { keyword: 'sneaker', category: "Footwear", label: 'sneakers' },
+  { keyword: 'sneakers', category: "Footwear", label: 'sneakers' },
+  { keyword: 'sandal', category: "Footwear", label: 'sandals' },
+  { keyword: 'heels', category: "Footwear", label: 'heels' },
+  { keyword: 'flat', category: "Footwear", label: 'flats' },
   // Accessories & fashion
-  { keyword: 'watch', category: 'Accessories', label: 'watches' },
-  { keyword: 'bag', category: 'Accessories', label: 'bags' },
-  { keyword: 'handbag', category: 'Accessories', label: 'handbags' },
-  { keyword: 'jewelry', category: 'Accessories', label: 'jewelry' },
-  { keyword: 'jewellery', category: 'Accessories', label: 'jewellery' },
-  { keyword: 'bracelet', category: 'Accessories', label: 'bracelets' },
-  { keyword: 'necklace', category: 'Accessories', label: 'necklaces' },
-  { keyword: 'earring', category: 'Accessories', label: 'earrings' },
+  { keyword: 'watch', category: 'Watches', label: 'watches' },
+  { keyword: 'bag', category: 'Bags', label: 'bags' },
+  { keyword: 'handbag', category: 'Bags', label: 'handbags' },
+  { keyword: 'jewelry', category: 'Jewellery', label: 'jewelry' },
+  { keyword: 'jewellery', category: 'Jewellery', label: 'jewellery' },
+  { keyword: 'bracelet', category: 'Jewellery', label: 'bracelets' },
+  { keyword: 'necklace', category: 'Jewellery', label: 'necklaces' },
+  { keyword: 'earring', category: 'Jewellery', label: 'earrings' },
   { keyword: 'belt', category: 'Accessories', label: 'belts' },
   { keyword: 'scarf', category: 'Accessories', label: 'scarves' },
 ];
@@ -381,9 +382,13 @@ export async function buildShoppingAssistantReply(message: string, context: Assi
         .not('categories.path', 'ilike', "%Infant%");
     }
 
-    // Apply category hint if detected
+    // Apply category hint or item keyword filter if detected
+    const validTerms = effectiveSearchTerms.filter((t) => t.length >= 3 && t.toLowerCase() !== guessedColor);
     if (guessedCategory.category) {
       queryBuilder = queryBuilder.ilike('categories.path', `%${guessedCategory.category}%`);
+    } else if (validTerms.length > 0) {
+      const primaryTerm = normalizeSearchTerm(validTerms[0]);
+      queryBuilder = queryBuilder.ilike('categories.path', `%${primaryTerm}%`);
     }
 
     // Apply budget ceiling if specified
@@ -391,24 +396,30 @@ export async function buildShoppingAssistantReply(message: string, context: Assi
       queryBuilder = queryBuilder.lte('retail_price', budget.max);
     }
 
-    // Search terms OR / AND match
-    const validTerms = effectiveSearchTerms.filter((t) => t.length >= 3);
-    if (validTerms.length > 0) {
-      const searchOr = validTerms.map((t) => `name.ilike.%${normalizeSearchTerm(t)}%`).join(',');
-      queryBuilder = queryBuilder.or(searchOr);
-    }
-
     const { data: candidateRows } = await queryBuilder
       .gt('retail_price', 0)
       .order('rating', { ascending: false })
-      .limit(60);
+      .limit(80);
 
     if (candidateRows && candidateRows.length > 0) {
       products = candidateRows.map((row: any) => mapRawProduct(row)).filter(isFashionItem);
     }
 
-    // If specific item like "black t-shirt" yielded < 2 items, fallback to broader apparel category search
-    if (isSpecificSearch && products.length < 2) {
+    // Filter products to strictly require the color in name or description if guessedColor was requested
+    if (guessedColor && products.length > 0) {
+      const colorMatches = products.filter(p =>
+        p.name.toLowerCase().includes(guessedColor) || p.description.toLowerCase().includes(guessedColor)
+      );
+      if (colorMatches.length >= 1) {
+        products = colorMatches;
+      } else {
+        // Zero color-matched items found - trigger honest fallback
+        products = [];
+      }
+    }
+
+    // If specific item or color+item search yielded 0 or < 2 items, fallback to broader category alternatives
+    if ((isSpecificSearch || guessedColor) && products.length < 2) {
       isFallbackAlternative = true;
       let fallbackQuery = supabase.from('products_new').select(selectStr);
 
@@ -422,7 +433,7 @@ export async function buildShoppingAssistantReply(message: string, context: Assi
         fallbackQuery = fallbackQuery.ilike('categories.path', `%${guessedCategory.category}%`);
       } else if (validTerms.length > 0) {
         const primaryKeyword = validTerms[validTerms.length - 1].replace(/s$/, '');
-        fallbackQuery = fallbackQuery.or(`name.ilike.%${primaryKeyword}%`);
+        fallbackQuery = fallbackQuery.ilike('categories.path', `%${primaryKeyword}%`);
       }
 
       const { data: fallbackRows } = await fallbackQuery
@@ -461,14 +472,15 @@ export async function buildShoppingAssistantReply(message: string, context: Assi
 
   const topPick = curated[0];
   const displayLabel = effectiveLabel || searchStr || guessedCategory.label || 'requested item';
+  const requestedLabel = guessedColor && !displayLabel.toLowerCase().includes(guessedColor) ? `${guessedColor} ${displayLabel}` : displayLabel;
 
   let topReason: string;
   if (isFallbackAlternative) {
-    topReason = `We don't have an exact "${searchStr}" in stock right now, but here are the closest matching ${targetGender === 'men' ? "men's" : targetGender === 'women' ? "women's" : ''} alternatives from our catalog:`;
+    topReason = `We don't have an exact ${requestedLabel} in stock right now, but here are the closest matching ${targetGender === 'men' ? "men's" : targetGender === 'women' ? "women's" : ''} alternatives from our catalog:`;
   } else if (topPick) {
-    topReason = `I picked ${topPick.name} as the strongest match for your requested ${displayLabel}.`;
+    topReason = `I picked ${topPick.name} as the strongest match for your requested ${requestedLabel}.`;
   } else {
-    topReason = `I could not find matching ${displayLabel}${budget?.max ? ` under ₹${budget.max.toLocaleString('en-IN')}` : ''} in our catalog right now.`;
+    topReason = `I could not find matching ${requestedLabel}${budget?.max ? ` under ₹${budget.max.toLocaleString('en-IN')}` : ''} in our catalog right now.`;
   }
 
   const reply = buildReply(normalized, curated, nextContext, { category: guessedCategory.category, label: effectiveLabel || guessedCategory.label }, budget, topReason);

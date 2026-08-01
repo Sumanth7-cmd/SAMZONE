@@ -45,19 +45,19 @@ export const OUTFIT_TEMPLATES: Record<string, Record<string, string[]>> = {
 };
 
 export const COLOR_FAMILY_FALLBACK: Record<string, string[]> = {
-    coral: ['red'],
-    peach: ['white', 'red'],
-    mustard: ['green'],
-    gold: ['white'],
-    lavender: ['blue'],
-    teal: ['blue', 'green'],
-    plum: ['red', 'black'],
-    'hot pink': ['red'],
+    coral: ['peach', 'pink', 'red', 'orange'],
+    peach: ['coral', 'pink', 'white', 'red'],
+    mustard: ['yellow', 'gold', 'brown'],
+    gold: ['yellow', 'mustard', 'beige'],
+    lavender: ['purple', 'violet', 'blue'],
+    teal: ['blue', 'green', 'cyan'],
+    plum: ['purple', 'maroon', 'red', 'black'],
+    'hot pink': ['pink', 'magenta', 'red'],
     emerald: ['green'],
     'forest green': ['green'],
     'olive green': ['green'],
     'royal blue': ['blue'],
-    'navy blue': ['blue'],
+    'navy blue': ['navy', 'blue'],
 };
 
 // Enhanced style matching rules for outfit generation

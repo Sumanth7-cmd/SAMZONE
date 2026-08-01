@@ -347,54 +347,66 @@ function getBrowseSeedState(pageSize: number): Promise<BrowseSeedState> {
 
 async function fetchRandomizedBrowsePage(page: number, pageSize: number): Promise<ProductSearchResponse> {
     const seedState = await getBrowseSeedState(pageSize);
-
-    const from = ((page - 1) * pageSize) % Math.max(1, seedState.totalAtSeedTime - pageSize);
     const totalPages = Math.max(1, Math.ceil(seedState.totalAtSeedTime / pageSize));
-
     const FASHION_SELECT = PRODUCT_SELECT.replace('categories!fk_category(path)', 'categories!fk_category!inner(path)');
-    let dedupedAcc: CatalogProduct[] = [];
-    let currentFrom = from;
-    const batchSize = 120;
-    let attempts = 0;
-    let rawFetchedTotal = 0;
 
-    while (dedupedAcc.length < pageSize && attempts < 5) {
-        attempts++;
-        const to = currentFrom + batchSize - 1;
-        const { data, error } = await supabase
-            .from('products_new')
-            .select(FASHION_SELECT)
-            .gt('retail_price', 0)
-            .not('categories.path', 'ilike', '%Home%')
-            .not('categories.path', 'ilike', '%Kitchen%')
-            .not('categories.path', 'ilike', '%Automotive%')
-            .not('categories.path', 'ilike', '%Mobiles%')
-            .not('categories.path', 'ilike', '%Electronics%')
-            .not('categories.path', 'ilike', '%Computers%')
-            .order('product_id', { ascending: true })
-            .range(currentFrom, to);
+    const BUCKETS = [
+        { name: "Men's Clothing", filter: (q: any) => q.ilike('categories.path', '%Clothing >> Men%') },
+        { name: "Women's Clothing", filter: (q: any) => q.ilike('categories.path', '%Clothing >> Women%') },
+        { name: "Footwear", filter: (q: any) => q.ilike('categories.path', '%Footwear%') },
+        { name: "Accessories", filter: (q: any) => q.or('path.ilike.%Accessories%,path.ilike.%Jewellery%,path.ilike.%Bags%,path.ilike.%Watches%', { foreignTable: 'categories' }) },
+        { name: "Electronics", filter: (q: any) => q.or('path.ilike.%Electronics%,path.ilike.%Mobiles%,path.ilike.%Computers%', { foreignTable: 'categories' }) },
+        { name: "Home & Decor", filter: (q: any) => q.or('path.ilike.%Home Decor%,path.ilike.%Kitchen%,path.ilike.%Stationery%', { foreignTable: 'categories' }) },
+    ];
 
-        if (error) {
-            throw new Error(`Product search failed: ${error.message}`);
+    const itemsPerBucket = Math.ceil(pageSize / BUCKETS.length);
+    const bucketOffset = ((page - 1) * itemsPerBucket + seedState.seed) % 300;
+
+    const bucketPromises = BUCKETS.map(async (b) => {
+        let q = supabase.from('products_new').select(FASHION_SELECT).gt('retail_price', 0);
+        q = b.filter(q);
+        const { data } = await q.range(bucketOffset, bucketOffset + 12);
+        return (data || []).map((row) => mapProduct(row as unknown as ProductRow));
+    });
+
+    const bucketResults = await Promise.all(bucketPromises);
+
+    const interleaved: CatalogProduct[] = [];
+    let idx = 0;
+    while (interleaved.length < pageSize * 2 && idx < 12) {
+        for (let b = 0; b < BUCKETS.length; b++) {
+            const item = bucketResults[b][idx];
+            if (item) {
+                interleaved.push(item);
+            }
         }
-
-        if (!data || data.length === 0) break;
-        rawFetchedTotal += data.length;
-
-        const productsMapped = data.map((row) => mapProduct(row as unknown as ProductRow));
-        const safeProducts = filterPresentationSafe(productsMapped);
-        dedupedAcc = suppressNearDuplicates([...dedupedAcc, ...safeProducts]);
-
-        if (data.length < batchSize) break;
-        currentFrom += batchSize;
+        idx++;
     }
 
-    if (page === 9) {
-        console.log(`[PAGE-9 DIAGNOSIS] Raw fetched count before dedup: ${rawFetchedTotal}, Count after dedup: ${dedupedAcc.length}`);
+    const safeProducts = filterPresentationSafe(interleaved);
+    const dedupedProducts = suppressNearDuplicates(safeProducts, pageSize * 2);
+
+    // Enforce strict category caps: Hard-cap Accessories to MAX 4 items per page of 24 (<= 16.6% target)
+    const finalProducts: CatalogProduct[] = [];
+    let accCount = 0;
+    const MAX_ACCESSORIES = Math.floor(pageSize * 0.20); // Hard cap: 4 per 24 (16.6%)
+
+    for (const p of dedupedProducts) {
+        if (finalProducts.length >= pageSize) break;
+        const c = (p.category_path || '').toLowerCase();
+        const isAcc = c.includes('accessories') || c.includes('jewellery') || c.includes('jewelry') || c.includes('bags') || c.includes('watches') || c.includes('mobiles');
+        if (isAcc) {
+            if (accCount < MAX_ACCESSORIES) {
+                finalProducts.push(p);
+                accCount++;
+            }
+        } else {
+            finalProducts.push(p);
+        }
     }
 
     return {
-        products: dedupedAcc.slice(0, pageSize),
+        products: finalProducts,
         totalCount: seedState.totalAtSeedTime,
         page,
         totalPages,

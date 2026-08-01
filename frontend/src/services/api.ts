@@ -80,18 +80,19 @@ function extractImageUrls(value: unknown): string[] {
     function recurse(v: unknown) {
         if (!v) return;
         if (typeof v === 'string') {
-            const t = v.trim();
+            let t = v.trim();
+            if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
+                try { t = JSON.parse(t); } catch (_) {}
+            }
+            if (t.startsWith('[') || t.startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(t);
+                    recurse(parsed);
+                    return;
+                } catch (_) {}
+            }
             const normalized = normalizeImageUrl(t);
             if (normalized) { urls.push(normalized); return; }
-            if (t.startsWith('[') || t.startsWith('"')) {
-                try { recurse(JSON.parse(t)); return; } catch (_) {}
-            }
-            const stripped = t.replace(/^\\["']+|\\["']+$/g, '').trim();
-            const strippedNorm = normalizeImageUrl(stripped);
-            if (strippedNorm) { urls.push(strippedNorm); return; }
-            if (stripped.startsWith('[') || stripped.startsWith('"')) {
-                try { recurse(JSON.parse(stripped)); return; } catch (_) {}
-            }
         } else if (Array.isArray(v)) {
             v.forEach(recurse);
         }
@@ -424,34 +425,45 @@ export const productApi = {
         return result.slice(0, limit);
     },
 
-    // Searches by color within fashion categories, prioritizing core apparel (shirts, dresses, footwear) over accessories.
     searchByColor: async (color: string, limit: number = 8): Promise<Product[]> => {
         const target = color.toLowerCase();
         const targets = [target, ...(COLOR_FAMILY_FALLBACK[target] || [])];
 
         const selectStr = PRODUCT_SELECT.replace('categories!fk_category(path)', 'categories!fk_category!inner(path)');
-        const colorOr = targets.map((t) => `name.ilike.%${t}%`).join(',');
+        const colorNameOr = targets.map((t) => `name.ilike.%${t}%`).join(',');
+        const colorDescOr = targets.map((t) => `description.ilike.%${t}%`).join(',');
+        const combinedOr = `${colorNameOr},${colorDescOr}`;
 
-        // 1. Primary pass: Fetch apparel candidates (clothing & footwear)
-        const { data: apparelData } = await supabase
+        // 1. Primary pass: Fetch clothing apparel candidates
+        const { data: clothingData } = await supabase
             .from('products_new')
             .select(selectStr)
-            .or(colorOr)
-            .or('categories.path.ilike.%Clothing%,categories.path.ilike.%Footwear%')
+            .ilike('categories.path', '%Clothing%')
+            .or(combinedOr)
             .gt('retail_price', 0)
             .order('rating', { ascending: false })
             .limit(60);
 
-        // 2. Secondary pass: General candidates (including accessories)
+        // 2. Footwear pass: Fetch footwear candidates
+        const { data: footwearData } = await supabase
+            .from('products_new')
+            .select(selectStr)
+            .ilike('categories.path', '%Footwear%')
+            .or(combinedOr)
+            .gt('retail_price', 0)
+            .order('rating', { ascending: false })
+            .limit(30);
+
+        // 3. Accessories pass: General fashion candidates
         const { data: generalData } = await supabase
             .from('products_new')
             .select(selectStr)
-            .or(colorOr)
+            .or(combinedOr)
             .gt('retail_price', 0)
             .order('rating', { ascending: false })
-            .limit(40);
+            .limit(30);
 
-        const rawList = [...(apparelData || []), ...(generalData || [])];
+        const rawList = [...(clothingData || []), ...(footwearData || []), ...(generalData || [])];
         const dedupped = Array.from(new Map(rawList.map((row: any) => [row.product_id || row.uniq_id, row])).values());
         const mapped = dedupped.map((row: any) => mapRawProduct(row)).filter(isFashionProduct);
 
