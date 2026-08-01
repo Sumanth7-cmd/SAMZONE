@@ -325,27 +325,43 @@ export const productApi = {
     }),
 
     getBestsellers: async (): Promise<Product[]> => {
-        // Shares the same cached request as the cold-start recommendation rail
-        // (both are the eight highest rated products), eliminating a duplicate
-        // network round-trip without changing the rendered results.
-        const result = await productApi.getProducts(0, 8, { sortBy: 'rating', sortDir: 'desc' });
-        return result.content;
+        try {
+            const FASHION_SELECT = PRODUCT_SELECT.replace('categories!fk_category(path)', 'categories!fk_category!inner(path)');
+            let query = supabase
+                .from('products_new')
+                .select(FASHION_SELECT)
+                .gt('retail_price', 250)
+                .or('path.ilike.%Clothing%,path.ilike.%Footwear%', { foreignTable: 'categories' })
+                .order('rating', { ascending: false })
+                .limit(35);
+            query = applyPresentationSafeFilter(query);
+
+            const { data, error } = await query;
+            if (error) throw error;
+            const mapped = (data || []).map((row: any) => mapRawProduct(row));
+            return productApi.rankApparelFirst(mapped, 8);
+        } catch (error) {
+            console.warn('Failed to fetch bestsellers:', error);
+            return [];
+        }
     },
 
     getDeals: async (): Promise<Product[]> => {
         try {
+            const FASHION_SELECT = PRODUCT_SELECT.replace('categories!fk_category(path)', 'categories!fk_category!inner(path)');
             let query = supabase
                 .from('products_new')
-                .select(PRODUCT_SELECT)
-                .gt('retail_price', 0)
+                .select(FASHION_SELECT)
+                .gt('retail_price', 100)
+                .or('path.ilike.%Clothing%,path.ilike.%Footwear%', { foreignTable: 'categories' })
                 .order('retail_price', { ascending: true })
-                .limit(8);
+                .limit(35);
             query = applyPresentationSafeFilter(query);
-            query = applyFashionOnlyFilter(query);
             
             const { data, error } = await query;
             if (error) throw error;
-            return (data || []).map((row: any) => mapRawProduct(row));
+            const mapped = (data || []).map((row: any) => mapRawProduct(row));
+            return productApi.rankApparelFirst(mapped, 8);
         } catch (error) {
             console.warn('Failed to fetch deals from Supabase:', error);
             return [];

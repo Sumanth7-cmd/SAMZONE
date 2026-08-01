@@ -35,41 +35,42 @@ export async function getRecommendations(limit: number = 8): Promise<Product[]> 
     const history = getViewedHistory();
     const viewedIds = new Set(history.map((p) => p.id));
 
+    let candidatePool: Product[] = [];
+
     if (history.length === 0) {
-        const topRated = await productApi.getProducts(0, limit, { sortBy: 'rating', sortDir: 'desc' });
-        return topRated.content;
-    }
+        return productApi.getBestsellers();
+    } else {
+        const topCategory = mostFrequent(history.map((p) => p.category));
+        const topBrand = mostFrequent(history.map((p) => p.brand));
 
-    const topCategory = mostFrequent(history.map((p) => p.category));
-    const topBrand = mostFrequent(history.map((p) => p.brand));
-
-    const result = await productApi.getProducts(0, limit + viewedIds.size, {
-        category: topCategory,
-        brand: topBrand,
-        sortBy: 'rating',
-        sortDir: 'desc',
-    });
-
-    let recommendations = result.content.filter((p) => !viewedIds.has(p.id));
-
-    if (recommendations.length < limit && topBrand) {
-        // Brand filter may be too narrow; retry with just the category.
-        const byCategory = await productApi.getProducts(0, limit + viewedIds.size, {
+        const result = await productApi.getProducts(0, 40, {
             category: topCategory,
+            brand: topBrand,
             sortBy: 'rating',
             sortDir: 'desc',
         });
-        const merged = new Map(recommendations.map((p) => [p.id, p]));
-        for (const p of byCategory.content) {
-            if (!viewedIds.has(p.id)) merged.set(p.id, p);
+
+        let recommendations = result.content.filter((p) => !viewedIds.has(p.id));
+
+        if (recommendations.length < limit && topBrand) {
+            const byCategory = await productApi.getProducts(0, 40, {
+                category: topCategory,
+                sortBy: 'rating',
+                sortDir: 'desc',
+            });
+            const merged = new Map(recommendations.map((p) => [p.id, p]));
+            for (const p of byCategory.content) {
+                if (!viewedIds.has(p.id)) merged.set(p.id, p);
+            }
+            recommendations = [...merged.values()];
         }
-        recommendations = [...merged.values()];
+
+        if (recommendations.length === 0) {
+            return productApi.getBestsellers();
+        }
+
+        candidatePool = recommendations;
     }
 
-    if (recommendations.length === 0) {
-        const topRated = await productApi.getProducts(0, limit, { sortBy: 'rating', sortDir: 'desc' });
-        recommendations = topRated.content.filter((p) => !viewedIds.has(p.id));
-    }
-
-    return recommendations.slice(0, limit);
+    return productApi.rankApparelFirst(candidatePool, limit);
 }
