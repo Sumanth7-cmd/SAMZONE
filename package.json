@@ -1,0 +1,23 @@
+{
+  "name": "samzone-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone data-import scripts for the SAMZONE project",
+  "type": "commonjs",
+  "scripts": {
+    "import-products": "tsx scripts/import-products.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.1",
+    "@types/ws": "^8.18.1",
+    "csv-parse": "^7.0.1",
+    "dotenv": "^17.4.2",
+    "sharp": "^0.35.3",
+    "ws": "^8.21.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,29 +1,33 @@
 import { supabase } from './supabaseClient';
+import { normalizeImageUrl } from '../utils/productImage';
+import { filterPresentationSafe } from './filters/presentationSafe';
 
 export interface CatalogProduct {
     id: number;
-    external_id: string;
-    product_name: string;
-    master_category: string;
-    sub_category: string;
-    article_type: string;
-    base_colour: string;
-    gender: string;
-    season: string;
-    usage: string;
+    uniq_id: string;
+    pid?: string;
+    name: string;
     image_url: string;
+    rating: number;
     price: number;
+    list_price: number;
+    brand: string;
+    category_path: string;
+    discount_percentage?: number;
+    description?: string;
     created_at: string;
 }
 
-export type ProductSort = 'price_asc' | 'price_desc' | 'newest';
+export type ProductSort = 'price_asc' | 'price_desc' | 'newest' | 'rating_desc' | 'bought_last_month_desc';
 
 export interface ProductSearchParams {
     q?: string;
     category?: string;
-    gender?: string;
+    gender?: string; // Kept for compatibility but ignored/no-op in new schema
     minPrice?: number;
     maxPrice?: number;
+    minRating?: number;
+    isBestSeller?: boolean;
     sort?: ProductSort;
     page?: number;
     pageSize?: number;
@@ -36,27 +40,92 @@ export interface ProductSearchResponse {
     totalPages: number;
 }
 
-// The 5 master_category and 5 gender values actually present in the products
-// table (verified by paginating the full table), not the old Spring-backend
-// taxonomy ("Men's Clothing" etc.) that doesn't exist on this schema.
-export const CATEGORY_OPTIONS = ['Apparel', 'Footwear', 'Accessories', 'Free Items', 'Personal Care'];
+export const CATEGORY_OPTIONS: string[] = [];
 export const GENDER_OPTIONS = ['Men', 'Women', 'Unisex', 'Boys', 'Girls'];
 
 const DEFAULT_PAGE_SIZE = 24;
+const PRODUCT_SELECT = 'product_id, uniq_id, pid, name, brand_id, category_id, brands!fk_brand(name), categories!fk_category(path), retail_price, discounted_price, description, rating, image, specifications, created_at';
 
-// Builds an AND-of-prefixes tsquery ("puma:* & shirt:*") so short, in-progress
-// search-box input still matches - plain to_tsquery only matches whole lexemes,
-// so typing "shi" would otherwise miss "Shirt" entirely without the `:*` prefix
-// operator on each term.
-function buildPrefixTsQuery(q: string): string | null {
-    const terms = q
-        .trim()
-        .split(/\s+/)
-        .map((term) => term.replace(/[^a-zA-Z0-9]/g, ''))
-        .filter(Boolean);
+/**
+ * Recursively unwrap a raw database `image` value (string, array, or deeply
+ * nested JSON string) into normalized Flipkart CDN URLs.  Rejects any URL
+ * that normalizeImageUrl flags as invalid (placeholder services, bare paths…).
+ */
+function extractNormalizedImages(value: unknown, depth = 0): string[] {
+    if (depth > 4) return []; // guard against infinite recursion on malformed data
+    if (Array.isArray(value)) {
+        return value.flatMap((item) => extractNormalizedImages(item, depth + 1));
+    }
+    if (typeof value !== 'string' || !value.trim()) return [];
+    const trimmed = value.trim();
+    // Try JSON parse when it looks like an encoded array or string
+    if (trimmed.startsWith('[') || trimmed.startsWith('"')) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            // The DB sometimes double-encodes: '["[\"url\"]"]'
+            if (parsed !== trimmed) {
+                return extractNormalizedImages(parsed, depth + 1);
+            }
+        } catch { /* not JSON – fall through */ }
+    }
+    // Pipe-separated list
+    if (trimmed.includes('|')) {
+        return trimmed.split('|').flatMap((part) => extractNormalizedImages(part.trim(), depth + 1));
+    }
+    const normalized = normalizeImageUrl(trimmed);
+    return normalized ? [normalized] : [];
+}
 
-    if (terms.length === 0) return null;
-    return terms.map((term) => `${term}:*`).join(' & ');
+function firstImage(image: unknown): string {
+    const results = extractNormalizedImages(image);
+    return results[0] || '';
+}
+
+interface ProductRow {
+    product_id: number;
+    uniq_id?: string;
+    pid?: string;
+    name?: string;
+    brand_id?: number;
+    category_id?: number;
+    retail_price?: number | string | null;
+    discounted_price?: number | string | null;
+    description?: string;
+    rating?: number | null;
+    image?: string | string[];
+    specifications?: string | null;
+    created_at?: string;
+    brands?: { name: string } | null;
+    categories?: { path: string } | null;
+}
+
+function mapProduct(p: any): CatalogProduct {
+    const retailPrice = Number(p.retail_price) || 0;
+    const discountedPrice = Number(p.discounted_price) || 0;
+    const price = (discountedPrice > 0 && discountedPrice < retailPrice) ? discountedPrice : retailPrice;
+    const listPrice = retailPrice > 0 ? retailPrice : price;
+    const discountPct =
+        listPrice > 0 && price < listPrice
+            ? Math.round(((listPrice - price) / listPrice) * 100)
+            : undefined;
+    const brandName = p.brands?.name ?? '';
+    const categoryPath = p.categories?.path ?? '';
+    const imageUrl = firstImage(p.image);
+    return {
+        id: p.product_id ?? 0,
+        uniq_id: p.uniq_id ?? '',
+        pid: p.pid,
+        name: p.name ?? '',
+        image_url: imageUrl,
+        rating: typeof p.rating === 'number' ? p.rating : 0,
+        price,
+        list_price: listPrice,
+        brand: brandName,
+        category_path: categoryPath,
+        discount_percentage: discountPct,
+        description: p.description ?? '',
+        created_at: p.created_at || new Date().toISOString(),
+    };
 }
 
 // --- Near-duplicate suppression -------------------------------------------
@@ -68,26 +137,48 @@ function buildPrefixTsQuery(q: string): string | null {
 // same-or-near-same-named products can appear together on a single fetched
 // page. It only reorders what was already fetched - no extra query, so at a
 // page size of a few dozen rows the O(n * groups) cost is negligible.
-const MAX_PER_NAME_GROUP = 3;
+const MAX_PER_EXACT_NAME = 1;
+const MAX_PER_PATTERN_GROUP = 2;
+const MAX_PER_CATEGORY_PATH = 4;
 
 function tokenize(name: string): string[] {
     return name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
 }
 
-// This catalog's names consistently end in the product-type noun (Flats,
-// Sandals, Shoes, Jeans, Watch, Kurta, ...). Requiring that last word to
-// match (tolerating a trailing plural "s") is what keeps this from lumping
-// together genuinely different products that just share brand/color/gender
-// tokens - e.g. "Rocia Women Black Flats" vs "Rocia Women Black Heels" is a
-// 1-word difference by token count alone, but flats and heels aren't
-// duplicates of each other.
 function lastToken(tokens: string[]): string {
     const last = tokens[tokens.length - 1] ?? '';
     return last.endsWith('s') ? last.slice(0, -1) : last;
 }
 
-// "Very similar" per the product ask: identical name, or differing by only
-// 1-2 words (e.g. "Rocia Women Black Flats" vs "Rocia Women Brown Flats").
+// Extract core pattern (e.g., "a line dress", "jeans", "formal shirt", "t shirt", "boxer", "bra", "sneakers")
+function extractCorePattern(name: string): string {
+    const lower = name.toLowerCase();
+    if (lower.includes('a-line dress') || lower.includes('a line dress')) return 'a-line dress';
+    if (lower.includes('maxi dress')) return 'maxi dress';
+    if (lower.includes('dress')) return 'dress';
+    if (lower.includes('jeans')) return 'jeans';
+    if (lower.includes('t-shirt') || lower.includes('tshirt')) return 't-shirt';
+    if (lower.includes('casual shirt')) return 'casual shirt';
+    if (lower.includes('formal shirt')) return 'formal shirt';
+    if (lower.includes('shirt')) return 'shirt';
+    if (lower.includes('trouser') || lower.includes('pants')) return 'trousers';
+    if (lower.includes('boxer')) return 'boxer';
+    if (lower.includes('bra')) return 'bra';
+    if (lower.includes('saree') || lower.includes('sari')) return 'saree';
+    if (lower.includes('kurta')) return 'kurta';
+    if (lower.includes('kurti')) return 'kurti';
+    if (lower.includes('lehenga')) return 'lehenga';
+    if (lower.includes('suit')) return 'suit';
+    if (lower.includes('blazer')) return 'blazer';
+    if (lower.includes('sneaker')) return 'sneakers';
+    if (lower.includes('sandal')) return 'sandals';
+    if (lower.includes('flats')) return 'flats';
+    if (lower.includes('heel')) return 'heels';
+    
+    const tokens = tokenize(name);
+    return lastToken(tokens) || lower;
+}
+
 function isNearDuplicateName(a: string, b: string): boolean {
     if (a === b) return true;
     const tokenListA = tokenize(a);
@@ -105,21 +196,54 @@ function isNearDuplicateName(a: string, b: string): boolean {
     return shared > 0 && diff <= 2;
 }
 
-function suppressNearDuplicates(products: CatalogProduct[]): CatalogProduct[] {
-    const groups: { representative: string; count: number }[] = [];
+function suppressNearDuplicates(products: CatalogProduct[], targetSize: number = 24): CatalogProduct[] {
+    const exactNameCount = new Map<string, number>();
+    const patternBrandCount = new Map<string, number>();
+    const subCatCount = new Map<string, number>();
     const kept: CatalogProduct[] = [];
+    const deferred: CatalogProduct[] = [];
 
+    // Pass 1: Strict Diversity Pass
     for (const product of products) {
-        let group = groups.find((g) => isNearDuplicateName(g.representative, product.product_name));
-        if (!group) {
-            group = { representative: product.product_name, count: 0 };
-            groups.push(group);
+        const normName = product.name.trim().toLowerCase();
+        const currentExact = exactNameCount.get(normName) || 0;
+        if (currentExact >= 1) {
+            continue; // Deduplicate exact identical product names
         }
-        if (group.count < MAX_PER_NAME_GROUP) {
-            group.count++;
+
+        const brand = (product.brand || 'generic').trim().toLowerCase();
+        const pattern = extractCorePattern(product.name);
+        const patternKey = `${brand}:${pattern}`;
+        const currentPatternCount = patternBrandCount.get(patternKey) || 0;
+
+        const parts = product.category_path.split('>>').map((s) => s.trim().toLowerCase());
+        const subCat = parts.slice(0, 3).join(' >> ') || 'general';
+        const currentCatCount = subCatCount.get(subCat) || 0;
+
+        if (currentPatternCount >= 2 || currentCatCount >= 8) {
+            deferred.push(product);
+            continue;
+        }
+
+        exactNameCount.set(normName, currentExact + 1);
+        patternBrandCount.set(patternKey, currentPatternCount + 1);
+        subCatCount.set(subCat, currentCatCount + 1);
+        kept.push(product);
+
+        if (kept.length >= targetSize) break;
+    }
+
+    // Pass 2: Backfill Pass if page is below targetSize
+    if (kept.length < targetSize) {
+        for (const product of deferred) {
+            const normName = product.name.trim().toLowerCase();
+            const currentExact = exactNameCount.get(normName) || 0;
+            if (currentExact >= 1) continue; // Still prevent exact duplicates
+
+            exactNameCount.set(normName, currentExact + 1);
             kept.push(product);
+            if (kept.length >= targetSize) break;
         }
-        // else: capped - this product is skipped for this page, per spec ("cap and skip the rest").
     }
 
     return kept;
@@ -175,6 +299,8 @@ function isDefaultBrowse(params: ProductSearchParams): boolean {
         !params.gender &&
         params.minPrice == null &&
         params.maxPrice == null &&
+        params.minRating == null &&
+        params.isBestSeller == null &&
         !params.sort
     );
 }
@@ -197,8 +323,8 @@ function getBrowseSeedState(pageSize: number): Promise<BrowseSeedState> {
     if (!seedPromise) {
         seedPromise = (async () => {
             const { count, error: countError } = await supabase
-                .from('products')
-                .select('id', { count: 'exact', head: true });
+                .from('products_new')
+                .select('product_id', { count: 'exact', head: true });
 
             if (countError) {
                 seedPromise = null; // allow a retry on the next call
@@ -222,32 +348,194 @@ function getBrowseSeedState(pageSize: number): Promise<BrowseSeedState> {
 async function fetchRandomizedBrowsePage(page: number, pageSize: number): Promise<ProductSearchResponse> {
     const seedState = await getBrowseSeedState(pageSize);
 
-    const maxOffset = Math.max(0, seedState.totalAtSeedTime - pageSize);
-    const baseOffset = Math.min(seedState.seed, maxOffset);
-    const from = baseOffset + (page - 1) * pageSize;
-    const totalPages = Math.max(1, Math.ceil((seedState.totalAtSeedTime - baseOffset) / pageSize));
+    const from = ((page - 1) * pageSize) % Math.max(1, seedState.totalAtSeedTime - pageSize);
+    const totalPages = Math.max(1, Math.ceil(seedState.totalAtSeedTime / pageSize));
 
-    if (from >= seedState.totalAtSeedTime) {
-        // Paged past the end of the randomized slice - stop rather than wrap.
-        return { products: [], totalCount: seedState.totalAtSeedTime, page, totalPages };
+    const FASHION_SELECT = PRODUCT_SELECT.replace('categories!fk_category(path)', 'categories!fk_category!inner(path)');
+    let dedupedAcc: CatalogProduct[] = [];
+    let currentFrom = from;
+    const batchSize = 120;
+    let attempts = 0;
+    let rawFetchedTotal = 0;
+
+    while (dedupedAcc.length < pageSize && attempts < 5) {
+        attempts++;
+        const to = currentFrom + batchSize - 1;
+        const { data, error } = await supabase
+            .from('products_new')
+            .select(FASHION_SELECT)
+            .gt('retail_price', 0)
+            .not('categories.path', 'ilike', '%Home%')
+            .not('categories.path', 'ilike', '%Kitchen%')
+            .not('categories.path', 'ilike', '%Automotive%')
+            .not('categories.path', 'ilike', '%Mobiles%')
+            .not('categories.path', 'ilike', '%Electronics%')
+            .not('categories.path', 'ilike', '%Computers%')
+            .order('product_id', { ascending: true })
+            .range(currentFrom, to);
+
+        if (error) {
+            throw new Error(`Product search failed: ${error.message}`);
+        }
+
+        if (!data || data.length === 0) break;
+        rawFetchedTotal += data.length;
+
+        const productsMapped = data.map((row) => mapProduct(row as unknown as ProductRow));
+        const safeProducts = filterPresentationSafe(productsMapped);
+        dedupedAcc = suppressNearDuplicates([...dedupedAcc, ...safeProducts]);
+
+        if (data.length < batchSize) break;
+        currentFrom += batchSize;
     }
 
-    const to = from + pageSize - 1;
-    const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('id', { ascending: true })
-        .range(from, to);
-
-    if (error) {
-        throw new Error(`Product search failed: ${error.message}`);
+    if (page === 9) {
+        console.log(`[PAGE-9 DIAGNOSIS] Raw fetched count before dedup: ${rawFetchedTotal}, Count after dedup: ${dedupedAcc.length}`);
     }
 
     return {
-        products: suppressNearDuplicates((data ?? []) as CatalogProduct[]),
+        products: dedupedAcc.slice(0, pageSize),
         totalCount: seedState.totalAtSeedTime,
         page,
         totalPages,
+    };
+}
+
+const SYNONYMS: Record<string, string[]> = {
+    'sneaker': ['shoe', 'footwear', 'athletic'],
+    'sneakers': ['shoes', 'footwear', 'athletic'],
+    'tshirt': ['shirt', 'tee', 't-shirt', 'top'],
+    't-shirt': ['shirt', 'tee', 'tshirt', 'top'],
+    'tee': ['shirt', 'tshirt', 't-shirt', 'top'],
+    'jeans': ['pants', 'denim', 'trouser'],
+    'jean': ['pants', 'denim', 'trouser'],
+    'pant': ['trouser', 'jeans', 'chinos'],
+    'pants': ['trousers', 'jeans', 'chinos'],
+    'trousers': ['pants', 'jeans'],
+    'trouser': ['pants', 'jeans'],
+    'saree': ['sari', 'ethnic', 'clothing'],
+    'kurta': ['kurti', 'ethnic', 'sherwani'],
+    'kurti': ['kurta', 'ethnic'],
+    'dress': ['gown', 'frock', 'clothing'],
+    'suit': ['blazer', 'formal', 'tuxedo'],
+    'blazer': ['suit', 'jacket', 'formal'],
+    'heels': ['shoes', 'sandals', 'footwear'],
+    'flats': ['shoes', 'sandals', 'footwear'],
+    'sandals': ['shoes', 'footwear', 'flats'],
+    'sandal': ['shoe', 'footwear', 'flats'],
+};
+
+const KNOWN_BRANDS = ['alisha', 'aw', 'dressberry', 'adidas', 'calvin klein', 'riot jeans', 's9 women', 'brandtrendz', 'niremo', 'schtaron', 'adorn', 'catwalk', 'fabindia', 'bata', 'woodland', 'crocs', 'roadster', 'hrx', 'zara', 'h&m'];
+const KNOWN_CATEGORIES = ['clothing', 'footwear', 'shoes', 'accessories', 'jewellery', 'jewelry', 'bag', 'handbag', 'watch', 'belt', 'scarf', 'apparel', 'top', 'shirt', 'pants', 'trousers', 'jeans', 'dress', 'saree', 'kurta', 'kurti', 'lehenga'];
+
+const BRAND_TYPOS: Record<string, string> = {
+    'nikee': 'nike',
+    'niky': 'nike',
+    'adidas': 'adidas',
+    'adidass': 'adidas',
+    'addidas': 'adidas',
+    'pumaa': 'puma',
+    'pumas': 'puma',
+    'zarra': 'zara',
+    'levis': 'levi',
+    'h&m': 'h&m',
+    'handm': 'h&m',
+};
+
+const KNOWN_GENDERS = ['men', 'women', 'unisex', 'boys', 'girls'];
+const KNOWN_OCCASIONS = ['wedding', 'party', 'office', 'college', 'festival', 'travel'];
+const KNOWN_COLORS = ['red', 'blue', 'green', 'black', 'white', 'pink', 'purple', 'orange', 'brown', 'grey', 'navy', 'beige', 'silver', 'gold', 'maroon', 'teal', 'olive', 'cream', 'rust', 'mustard'];
+
+interface ParsedQuery {
+    brands: string[];
+    categories: string[];
+    genders: string[];
+    occasions: string[];
+    colors: string[];
+    terms: string[];
+}
+
+function parseQuery(q: string): ParsedQuery {
+    const lowerQ = q.toLowerCase();
+    const brands: string[] = [];
+    const categories: string[] = [];
+    const genders: string[] = [];
+    const occasions: string[] = [];
+    const colors: string[] = [];
+
+    // Apply Brand typo tolerance
+    const words = lowerQ.replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/).filter(Boolean);
+    for (const word of words) {
+        if (BRAND_TYPOS[word]) {
+            brands.push(BRAND_TYPOS[word]);
+        }
+    }
+
+    for (const brand of KNOWN_BRANDS) {
+        if (lowerQ.includes(brand) && !brands.includes(brand)) {
+            brands.push(brand);
+        }
+    }
+
+    for (const category of KNOWN_CATEGORIES) {
+        if (lowerQ.includes(category)) {
+            categories.push(category);
+        }
+    }
+
+    for (const g of KNOWN_GENDERS) {
+        if (new RegExp(`\\b${g}\\b`, 'i').test(lowerQ)) {
+            genders.push(g);
+        }
+    }
+
+    for (const o of KNOWN_OCCASIONS) {
+        if (lowerQ.includes(o)) {
+            occasions.push(o);
+        }
+    }
+
+    for (const col of KNOWN_COLORS) {
+        if (new RegExp(`\\b${col}\\b`, 'i').test(lowerQ)) {
+            colors.push(col);
+        }
+    }
+
+    const searchTerms: string[] = [];
+    for (const token of words) {
+        const isBrandToken = brands.some(b => b.includes(token));
+        const isCategoryToken = categories.some(c => c.includes(token));
+        const isGenderToken = genders.includes(token);
+        const isOccasionToken = occasions.includes(token);
+        const isColorToken = colors.includes(token);
+
+        if (!isBrandToken && !isCategoryToken && !isGenderToken && !isOccasionToken && !isColorToken) {
+            searchTerms.push(token);
+        } else if (isCategoryToken) {
+            searchTerms.push(token);
+        }
+    }
+
+    const expandedTerms = new Set<string>();
+    for (const term of searchTerms) {
+        expandedTerms.add(term);
+        const singular = term.endsWith('s') ? term.slice(0, -1) : term;
+        if (singular && singular !== term) {
+            expandedTerms.add(singular);
+        }
+        const synonyms = SYNONYMS[term] || SYNONYMS[singular] || [];
+        for (const syn of synonyms) {
+            expandedTerms.add(syn);
+        }
+    }
+
+    return {
+        brands,
+        categories,
+        genders,
+        occasions,
+        colors,
+        terms: Array.from(expandedTerms),
     };
 }
 
@@ -259,62 +547,140 @@ export async function searchProducts(params: ProductSearchParams): Promise<Produ
         return fetchRandomizedBrowsePage(page, pageSize);
     }
 
-    let query = supabase.from('products').select('*', { count: 'exact' });
-
+    let parsed: ParsedQuery | null = null;
     if (params.q) {
-        const tsQuery = buildPrefixTsQuery(params.q);
-        if (tsQuery) {
-            query = query.textSearch('product_name', tsQuery);
+        parsed = parseQuery(params.q);
+    }
+
+    let selectStr = PRODUCT_SELECT;
+    if (params.category || params.gender || (parsed && (parsed.categories.length > 0 || parsed.genders.length > 0))) {
+        selectStr = selectStr.replace('categories!fk_category(path)', 'categories!fk_category!inner(path)');
+    }
+    if (parsed && parsed.brands.length > 0) {
+        selectStr = selectStr.replace('brands!fk_brand(name)', 'brands!fk_brand!inner(name)');
+    }
+    
+    let query = supabase.from('products_new').select(selectStr, { count: 'exact' });
+
+    if (parsed && parsed.brands.length > 0) {
+        parsed.brands.forEach(b => {
+            query = query.ilike('brands.name', `%${b}%`);
+        });
+    }
+
+    if (parsed && parsed.categories.length > 0) {
+        parsed.categories.forEach(c => {
+            query = query.ilike('categories.path', `%${c}%`);
+        });
+    }
+
+    if (parsed && parsed.genders.length > 0) {
+        parsed.genders.forEach(g => {
+            query = query.ilike('categories.path', `%${g}%`);
+        });
+    }
+
+    if (parsed && parsed.colors.length > 0) {
+        parsed.colors.forEach(col => {
+            query = query.or(`name.ilike.%${col}%,description.ilike.%${col}%`);
+        });
+    }
+
+    if (parsed && parsed.occasions.length > 0) {
+        parsed.occasions.forEach(o => {
+            query = query.or(`name.ilike.%${o}%,description.ilike.%${o}%`);
+        });
+    }
+
+    if (params.q && parsed) {
+        const orParts: string[] = [];
+        
+        parsed.terms.forEach(term => {
+            orParts.push(`name.ilike.%${term}%`);
+            orParts.push(`description.ilike.%${term}%`);
+        });
+
+        if (orParts.length > 0) {
+            const limitedParts = orParts.slice(0, 16);
+            query = query.or(limitedParts.join(','));
         }
     }
 
-    if (params.category) {
-        query = query.eq('master_category', params.category);
-    }
+    const catFilter = params.category?.trim().toLowerCase();
+    const genFilter = params.gender?.trim().toLowerCase();
 
-    if (params.gender) {
-        query = query.eq('gender', params.gender);
+    if (catFilter === 'men' || genFilter === 'men') {
+        query = query
+            .or("path.ilike.%Men's Clothing%,path.ilike.%Men's Footwear%,path.ilike.%Men's Accessories%,path.ilike.%Men's Wear%", { foreignTable: 'categories' })
+            .not('categories.path', 'ilike', "%Women's%");
+    } else if (catFilter === 'women' || genFilter === 'women') {
+        query = query
+            .or("path.ilike.%Women's Clothing%,path.ilike.%Women's Footwear%,path.ilike.%Women's Accessories%,path.ilike.%Women's Wear%,path.ilike.%Women's%", { foreignTable: 'categories' });
+    } else {
+        if (params.category) {
+            query = query.ilike('categories.path', `%${params.category}%`);
+        }
+        if (params.gender) {
+            query = query.ilike('categories.path', `%${params.gender}%`);
+        }
     }
 
     if (params.minPrice != null) {
-        query = query.gte('price', params.minPrice);
+        query = query.gte('retail_price', params.minPrice);
     }
 
     if (params.maxPrice != null) {
-        query = query.lte('price', params.maxPrice);
+        query = query.lte('retail_price', params.maxPrice);
     }
 
     switch (params.sort) {
         case 'price_asc':
-            query = query.order('price', { ascending: true });
+            query = query.order('retail_price', { ascending: true });
             break;
         case 'price_desc':
-            query = query.order('price', { ascending: false });
+            query = query.order('retail_price', { ascending: false });
             break;
         case 'newest':
             query = query.order('created_at', { ascending: false });
             break;
+        case 'rating_desc':
+            query = query.order('rating', { ascending: false });
+            break;
+        default:
+            break;
     }
 
-    // Stable tiebreaker so .range() pagination can't return duplicate/skipped
-    // rows across pages when the primary sort has ties (e.g. equal prices).
-    query = query.order('id', { ascending: true });
+    query = query.order('product_id', { ascending: true });
 
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-    query = query.range(from, to);
+    let dedupedAcc: CatalogProduct[] = [];
+    let candidateOffset = (page - 1) * pageSize;
+    const batchSize = 120;
+    let attempts = 0;
+    let totalCount = 0;
 
-    const { data, count, error } = await query;
+    while (dedupedAcc.length < pageSize && attempts < 5) {
+        attempts++;
+        const { data, count, error } = await query.range(candidateOffset, candidateOffset + batchSize - 1);
+        if (error) {
+            throw new Error(`Product search failed: ${error.message}`);
+        }
+        if (attempts === 1) {
+            totalCount = count ?? 0;
+        }
+        if (!data || data.length === 0) break;
 
-    if (error) {
-        throw new Error(`Product search failed: ${error.message}`);
+        const productsMapped = data.map((row) => mapProduct(row as unknown as ProductRow));
+        const safeProducts = filterPresentationSafe(productsMapped);
+        dedupedAcc = suppressNearDuplicates([...dedupedAcc, ...safeProducts]);
+
+        if (data.length < batchSize) break;
+        candidateOffset += batchSize;
     }
 
-    const totalCount = count ?? 0;
     const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
     return {
-        products: suppressNearDuplicates((data ?? []) as CatalogProduct[]),
+        products: dedupedAcc.slice(0, pageSize),
         totalCount,
         page,
         totalPages,

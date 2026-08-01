@@ -7,7 +7,13 @@ import lombok.AllArgsConstructor;
 import java.util.List;
 
 @Entity
-@Table(name = "products")
+@Table(name = "products", indexes = {
+    @Index(name = "idx_products_external_id", columnList = "external_id"),
+    @Index(name = "idx_products_category", columnList = "category"),
+    @Index(name = "idx_products_brand", columnList = "brand"),
+    @Index(name = "idx_products_price", columnList = "price"),
+    @Index(name = "idx_products_rating", columnList = "rating")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

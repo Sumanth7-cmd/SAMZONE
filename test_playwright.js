@@ -1,0 +1,10 @@
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+  page.on('pageerror', err => console.error('PAGE ERROR:', err));
+  await page.goto('http://localhost:5173/product/6178', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2000);
+  await browser.close();
+})();

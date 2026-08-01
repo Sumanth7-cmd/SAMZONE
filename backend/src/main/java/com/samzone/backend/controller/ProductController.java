@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 public class ProductController {
 
     private static final int IMAGE_REFRESH_BATCH_SIZE = 500;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private static final List<String> FASHION_CATEGORIES = List.of(
             "Men's Clothing", "Women's Clothing", "Men's Footwear", "Shoes");
@@ -52,8 +53,15 @@ public class ProductController {
             @RequestParam(defaultValue = "name") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir) {
 
-        Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
-        Pageable pageable = PageRequest.of(page, size, sort);
+        String safeSortBy = switch (sortBy) {
+            case "name", "brand", "category", "price", "rating", "id" -> sortBy;
+            default -> "name";
+        };
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(safeSortBy).descending() : Sort.by(safeSortBy).ascending();
+        // Bound externally supplied pagination so one request cannot force a
+        // large entity graph and response allocation. Existing normal clients
+        // use sizes well below this ceiling.
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_PAGE_SIZE), sort);
 
         String searchTerm = (search == null || search.isBlank()) ? null : search;
 
@@ -83,7 +91,7 @@ public class ProductController {
             @RequestParam String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("rating").descending());
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_PAGE_SIZE), Sort.by("rating").descending());
         Page<Product> result = productRepository.searchProducts(q, pageable);
         return ResponseEntity.ok(result);
     }

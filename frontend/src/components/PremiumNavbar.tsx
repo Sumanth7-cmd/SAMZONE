@@ -1,25 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { 
-    Search, 
-    ShoppingCart, 
-    User, 
-    Menu, 
-    X, 
-    ChevronDown, 
-    Heart, 
+import React, { useState, useEffect, useRef } from 'react';
+import {
+    Search,
+    ShoppingCart,
+    User,
+    Menu,
+    X,
+    ChevronDown,
+    Heart,
     Package,
     MapPin,
     HelpCircle,
     Gift,
     Sparkles,
     Camera,
-    Dna
+    Dna,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CART_EVENT, getCartCount } from '../utils/cart';
 import { WISHLIST_EVENT, getWishlistCount } from '../utils/wishlist';
 
+// Autocomplete suggestion sources
+const SUGGESTION_BRANDS = ['nike', 'adidas', 'zara', 'roadster', 'puma', 'gucci'];
+const SUGGESTION_CATEGORIES = ['dresses', 'shirts', 'jeans', 'sneakers', 'handbags', 'watches'];
+const SUGGESTION_OCCASIONS = ['wedding', 'party', 'office', 'festival', 'travel'];
+const SUGGESTION_COLORS = ['red', 'blue', 'black', 'white', 'green', 'pink'];
+
 const PremiumNavbar: React.FC = () => {
+    const navRef = useRef<HTMLDivElement | null>(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -27,10 +34,27 @@ const PremiumNavbar: React.FC = () => {
     const [wishlistCount, setWishlistCount] = useState(0);
     const navigate = useNavigate();
 
-    // Close dropdowns when clicking outside
+  // State for autocomplete suggestions
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  // Update suggestions as user types
+  useEffect(() => {
+    if (!searchQuery.trim()) { setSuggestions([]); return; }
+    const lower = searchQuery.toLowerCase();
+    const matches: string[] = [];
+    SUGGESTION_BRANDS.forEach(b => { if (b.startsWith(lower)) matches.push(b); });
+    SUGGESTION_CATEGORIES.forEach(c => { if (c.startsWith(lower)) matches.push(c); });
+    SUGGESTION_OCCASIONS.forEach(o => { if (o.startsWith(lower)) matches.push(o); });
+    SUGGESTION_COLORS.forEach(col => { if (col.startsWith(lower)) matches.push(col); });
+    setSuggestions(matches.slice(0, 6));
+  }, [searchQuery]);
+
     useEffect(() => {
-        const handleClickOutside = () => {
-            setIsAccountDropdownOpen(false);
+        const handleClickOutside = (event: MouseEvent) => {
+            if (navRef.current && !navRef.current.contains(event.target as Node)) {
+                setIsAccountDropdownOpen(false);
+                setIsMobileMenuOpen(false);
+            }
         };
 
         document.addEventListener('click', handleClickOutside);
@@ -68,32 +92,45 @@ const PremiumNavbar: React.FC = () => {
     };
 
     const searchForm = (
-        <form onSubmit={handleSearch} className="relative">
-            <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for products, brands, and more..."
-                className="w-full px-4 py-2 pl-10 pr-28 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            />
-            <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
-            <div className="absolute right-2 top-1.5 flex items-center gap-1">
-                <button
-                    type="button"
-                    onClick={() => navigate('/visual-search')}
-                    title="Search by photo"
-                    className="p-1.5 text-gray-500 hover:text-purple-600 transition-colors"
-                >
-                    <Camera className="w-5 h-5" />
-                </button>
-                <button
-                    type="submit"
-                    className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 px-4 py-1 rounded transition-colors"
-                >
-                    Search
-                </button>
-            </div>
-        </form>
+        <div className="relative">
+            <form onSubmit={handleSearch}>
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search for products, brands, and more..."
+                    className="input-primary pr-24 pl-12"
+                    aria-label="Search products"
+                />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/visual-search')}
+                        title="Search by photo"
+                        className="rounded-full p-2 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                        aria-label="Visual search"
+                    >
+                        <Camera className="w-4 h-4" />
+                    </button>
+                    <button
+                        type="submit"
+                        title="Search"
+                        className="rounded-full p-2 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
+                        aria-label="Submit search"
+                    >
+                        <Search className="w-4 h-4" />
+                    </button>
+                </div>
+            </form>
+            {suggestions.length > 0 && (
+                <ul className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 max-h-48 overflow-y-auto">
+                    {suggestions.map((s, i) => (
+                        <li key={i} className="px-3 py-2 hover:bg-gray-100 cursor-pointer" onClick={() => { setSearchQuery(s); navigate(`/shop?q=${encodeURIComponent(s)}`); setSuggestions([]); }} role="option">{s}</li>
+                    ))}
+                </ul>
+            )}
+        </div>
     );
 
     const categories = [
@@ -102,67 +139,66 @@ const PremiumNavbar: React.FC = () => {
         { name: 'Footwear', subcategories: ['Shoes', 'Sandals', 'Sneakers', 'Boots', 'Slippers'] },
         { name: 'Electronics', subcategories: ['Phones', 'Laptops', 'Headphones', 'Smart Watches', 'Accessories'] },
         { name: 'Home', subcategories: ['Furniture', 'Decor', 'Kitchen', 'Bedding', 'Lighting'] },
-        { name: 'Accessories', subcategories: ['Bags', 'Watches', 'Belts', 'Sunglasses', 'Jewelry'] }
+        { name: 'Accessories', subcategories: ['Bags', 'Watches', 'Belts', 'Sunglasses', 'Jewelry'] },
     ];
 
     return (
-        <div className="bg-white shadow-sm sticky top-0 z-40">
-            {/* Top Banner (hidden on narrow screens — the three text groups don't wrap and overflow below sm) */}
+        <div ref={navRef} className="bg-white shadow-sm sticky top-0 z-50">
             <div className="hidden sm:block bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-2 px-4">
                 <div className="max-w-7xl mx-auto flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-5">
                         <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4" />
-                            <span>Deliver to: Mumbai 400001</span>
+                            <span>Delivering across India</span>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                             <Gift className="w-4 h-4" />
-                            <span>Free delivery on orders above ₹500</span>
+                            <span>Free shipping on orders over ₹500</span>
                         </div>
+                    </div>
+                    <div className="flex items-center gap-5">
                         <div className="flex items-center gap-2">
                             <Sparkles className="w-4 h-4" />
-                            <span>AI-powered recommendations</span>
+                            <span>Curated AI recommendations</span>
                         </div>
+                        <span>Secure payments · Easy returns</span>
                     </div>
                 </div>
             </div>
 
-            {/* Main Navigation */}
-            <div className="bg-white border-b border-gray-200">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="flex items-center justify-between h-16">
-                        {/* Logo */}
-                        <div className="flex items-center gap-8">
-                            <Link to="/" className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center">
+            <div className="bg-white border-b border-slate-200">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex h-20 items-center justify-between gap-4">
+                        <div className="flex items-center gap-6">
+                            <Link to="/" className="flex items-center gap-3">
+                                <div className="w-11 h-11 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 shadow-[var(--shadow-soft)] flex items-center justify-center">
                                     <span className="text-white font-bold text-lg">S</span>
                                 </div>
-                                <span className="text-xl font-bold text-gray-900">SAMZONE</span>
+                                <div>
+                                    <p className="text-sm text-slate-500 uppercase tracking-[0.2em]">SAMZONE</p>
+                                    <p className="text-lg font-semibold text-slate-900">AI Shopping Studio</p>
+                                </div>
                             </Link>
 
-                            {/* Desktop Categories */}
                             <div className="hidden lg:flex items-center gap-6">
                                 <div className="relative group">
-                                    <button className="flex items-center gap-1 text-gray-700 hover:text-purple-600 transition-colors py-2">
+                                    <button className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-purple-700">
                                         All Categories
                                         <ChevronDown className="w-4 h-4" />
                                     </button>
-                                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                                        {categories.map((category) => (
-                                            <div key={category.name} className="border-b border-gray-100 last:border-b-0">
+                                    <div className="pointer-events-none absolute left-0 top-full z-10 mt-2 w-72 rounded-3xl border border-slate-200 bg-white p-4 opacity-0 transition duration-300 group-hover:opacity-100 group-hover:pointer-events-auto shadow-xl">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            {categories.map((category) => (
                                                 <Link
+                                                    key={category.name}
                                                     to={`/shop?category=${category.name.toLowerCase()}`}
-                                                    className="block px-4 py-3 hover:bg-purple-50 transition-colors"
+                                                    className="block rounded-3xl p-4 hover:bg-slate-50 transition"
                                                 >
-                                                    <div className="font-medium text-gray-900">{category.name}</div>
-                                                    <div className="text-sm text-gray-600">
-                                                        {category.subcategories.slice(0, 3).join(', ')}
-                                                    </div>
+                                                    <p className="text-sm font-semibold text-slate-900">{category.name}</p>
+                                                    <p className="mt-2 text-xs text-slate-500">{category.subcategories.slice(0, 3).join(', ')}</p>
                                                 </Link>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -170,7 +206,7 @@ const PremiumNavbar: React.FC = () => {
                                     <Link
                                         key={category.name}
                                         to={`/shop?category=${category.name.toLowerCase()}`}
-                                        className="text-gray-700 hover:text-purple-600 transition-colors py-2"
+                                        className="text-sm font-medium text-slate-700 hover:text-purple-700 transition"
                                     >
                                         {category.name}
                                     </Link>
@@ -178,7 +214,7 @@ const PremiumNavbar: React.FC = () => {
 
                                 <Link
                                     to="/skin-tone"
-                                    className="flex items-center gap-1 text-purple-700 font-medium hover:text-purple-900 transition-colors py-2"
+                                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-50 transition"
                                 >
                                     <Sparkles className="w-4 h-4" />
                                     Skin Guide
@@ -186,7 +222,7 @@ const PremiumNavbar: React.FC = () => {
 
                                 <Link
                                     to="/stylist"
-                                    className="flex items-center gap-1 text-purple-700 font-medium hover:text-purple-900 transition-colors py-2"
+                                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-50 transition"
                                 >
                                     <Sparkles className="w-4 h-4" />
                                     Outfit Stylist
@@ -194,7 +230,7 @@ const PremiumNavbar: React.FC = () => {
 
                                 <Link
                                     to="/style-dna"
-                                    className="flex items-center gap-1 text-purple-700 font-medium hover:text-purple-900 transition-colors py-2"
+                                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-purple-700 hover:bg-purple-50 transition"
                                 >
                                     <Dna className="w-4 h-4" />
                                     Style DNA
@@ -202,110 +238,108 @@ const PremiumNavbar: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Search Bar (desktop/tablet only — a compact version renders below on mobile) */}
-                        <div className="hidden md:block flex-1 max-w-2xl mx-8">
-                            {searchForm}
-                        </div>
+                        <div className="hidden md:block flex-1 max-w-2xl">{searchForm}</div>
 
-                        {/* Right Actions */}
-                        <div className="flex items-center gap-4">
-                            {/* Account Dropdown */}
-                            <div className="relative" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
                                 <button
-                                    onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)}
-                                    className="flex items-center gap-2 text-gray-700 hover:text-purple-600 transition-colors"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        setIsAccountDropdownOpen((open) => !open);
+                                    }}
+                                    className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-purple-700 transition"
+                                    aria-expanded={isAccountDropdownOpen}
+                                    aria-haspopup="menu"
                                 >
                                     <User className="w-5 h-5" />
                                     <span className="hidden md:block">Account</span>
                                     <ChevronDown className="w-4 h-4" />
                                 </button>
-                                
+
                                 {isAccountDropdownOpen && (
-                                    <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200">
+                                    <div className="absolute right-0 top-full z-20 mt-3 w-52 rounded-3xl border border-slate-200 bg-white shadow-xl">
                                         <Link
                                             to="/profile"
-                                            className="flex items-center gap-2 px-4 py-3 hover:bg-purple-50 transition-colors"
+                                            className="flex items-center gap-2 rounded-3xl px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
                                         >
                                             <User className="w-4 h-4" />
-                                            <span>My Profile</span>
+                                            My Profile
                                         </Link>
                                         <Link
                                             to="/orders"
-                                            className="flex items-center gap-2 px-4 py-3 hover:bg-purple-50 transition-colors"
+                                            className="flex items-center gap-2 rounded-3xl px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
                                         >
                                             <Package className="w-4 h-4" />
-                                            <span>Orders</span>
+                                            Orders
                                         </Link>
                                         <Link
                                             to="/wishlist"
-                                            className="flex items-center gap-2 px-4 py-3 hover:bg-purple-50 transition-colors"
+                                            className="flex items-center gap-2 rounded-3xl px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
                                         >
                                             <Heart className="w-4 h-4" />
-                                            <span>Wishlist</span>
+                                            Wishlist
                                         </Link>
                                         <Link
                                             to="/help"
-                                            className="flex items-center gap-2 px-4 py-3 hover:bg-purple-50 transition-colors"
+                                            className="flex items-center gap-2 rounded-3xl px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
                                         >
                                             <HelpCircle className="w-4 h-4" />
-                                            <span>Help & Support</span>
+                                            Help & Support
                                         </Link>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Wishlist */}
                             <Link
                                 to="/wishlist"
-                                className="relative flex items-center gap-2 text-gray-700 hover:text-purple-600 transition-colors"
+                                className="relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-purple-700 transition"
                             >
                                 <Heart className="w-5 h-5" />
                                 <span className="hidden md:block">Wishlist</span>
                                 {wishlistCount > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                                    <span className="absolute -top-2 -right-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
                                         {wishlistCount}
                                     </span>
                                 )}
                             </Link>
 
-                            {/* Cart */}
                             <Link
                                 to="/cart"
-                                className="relative flex items-center gap-2 text-gray-700 hover:text-purple-600 transition-colors"
+                                className="relative inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-purple-700 transition"
                             >
                                 <ShoppingCart className="w-5 h-5" />
                                 <span className="hidden md:block">Cart</span>
                                 {cartCount > 0 && (
-                                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                                    <span className="absolute -top-2 -right-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
                                         {cartCount}
                                     </span>
                                 )}
                             </Link>
 
-                            {/* Mobile Menu Toggle */}
                             <button
-                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="lg:hidden flex items-center gap-2 text-gray-700 hover:text-purple-600 transition-colors"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    setIsMobileMenuOpen((open) => !open);
+                                }}
+                                className="lg:hidden inline-flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 transition"
+                                aria-expanded={isMobileMenuOpen}
+                                aria-label="Toggle navigation menu"
                             >
                                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                             </button>
                         </div>
                     </div>
                 </div>
-                {/* Search Bar (mobile only) */}
-                <div className="md:hidden px-4 pb-3">
-                    {searchForm}
-                </div>
+                <div className="md:hidden px-4 py-4">{searchForm}</div>
             </div>
 
-            {/* Mobile Menu */}
             {isMobileMenuOpen && (
-                <div className="lg:hidden bg-white border-t border-gray-200">
-                    <div className="px-4 py-4">
-                        <div className="space-y-4">
+                <div className="lg:hidden border-t border-slate-200 bg-slate-50">
+                    <div className="max-w-7xl mx-auto px-4 py-4">
+                        <div className="grid gap-4">
                             <Link
                                 to="/skin-tone"
-                                className="flex items-center gap-2 font-medium text-purple-700 py-2"
+                                className="flex items-center gap-3 rounded-3xl bg-white px-4 py-3 text-sm font-medium text-purple-700 shadow-sm hover:bg-purple-50 transition"
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
                                 <Sparkles className="w-4 h-4" />
@@ -313,7 +347,7 @@ const PremiumNavbar: React.FC = () => {
                             </Link>
                             <Link
                                 to="/stylist"
-                                className="flex items-center gap-2 font-medium text-purple-700 py-2"
+                                className="flex items-center gap-3 rounded-3xl bg-white px-4 py-3 text-sm font-medium text-purple-700 shadow-sm hover:bg-purple-50 transition"
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
                                 <Sparkles className="w-4 h-4" />
@@ -321,7 +355,7 @@ const PremiumNavbar: React.FC = () => {
                             </Link>
                             <Link
                                 to="/style-dna"
-                                className="flex items-center gap-2 font-medium text-purple-700 py-2"
+                                className="flex items-center gap-3 rounded-3xl bg-white px-4 py-3 text-sm font-medium text-purple-700 shadow-sm hover:bg-purple-50 transition"
                                 onClick={() => setIsMobileMenuOpen(false)}
                             >
                                 <Dna className="w-4 h-4" />
@@ -331,17 +365,17 @@ const PremiumNavbar: React.FC = () => {
                                 <div key={category.name}>
                                     <Link
                                         to={`/shop?category=${category.name.toLowerCase()}`}
-                                        className="block font-medium text-gray-900 py-2"
+                                        className="block rounded-3xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 transition"
                                         onClick={() => setIsMobileMenuOpen(false)}
                                     >
                                         {category.name}
                                     </Link>
-                                    <div className="pl-4 space-y-1">
+                                    <div className="ml-4 mt-2 space-y-1">
                                         {category.subcategories.map((sub) => (
                                             <Link
                                                 key={sub}
                                                 to={`/shop?subcategory=${sub.toLowerCase()}`}
-                                                className="block text-sm text-gray-600 py-1"
+                                                className="block rounded-3xl px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 transition"
                                                 onClick={() => setIsMobileMenuOpen(false)}
                                             >
                                                 {sub}

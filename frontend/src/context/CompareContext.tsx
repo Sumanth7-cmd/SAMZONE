@@ -1,7 +1,26 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
 import type { Product } from '../services/api';
+import { showToast } from '../utils/notifications';
 
 const MAX_COMPARE = 3;
+const COMPARE_KEY = 'compare';
+
+function getCompareFromStorage(): Product[] {
+    try {
+        const raw = localStorage.getItem(COMPARE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveCompareToStorage(items: Product[]) {
+    try {
+        localStorage.setItem(COMPARE_KEY, JSON.stringify(items));
+    } catch {
+        // ignore write failures
+    }
+}
 
 interface CompareContextValue {
     compareItems: Product[];
@@ -15,14 +34,25 @@ interface CompareContextValue {
 const CompareContext = createContext<CompareContextValue | undefined>(undefined);
 
 export const CompareProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [compareItems, setCompareItems] = useState<Product[]>([]);
+    const [compareItems, setCompareItems] = useState<Product[]>(() => getCompareFromStorage());
 
     const toggleCompare = useCallback((product: Product) => {
         setCompareItems((prev) => {
             const exists = prev.some((p) => p.id === product.id);
-            if (exists) return prev.filter((p) => p.id !== product.id);
-            if (prev.length >= MAX_COMPARE) return prev;
-            return [...prev, product];
+            if (exists) {
+                const next = prev.filter((p) => p.id !== product.id);
+                saveCompareToStorage(next);
+                showToast('Removed from comparison', 'info');
+                return next;
+            }
+            if (prev.length >= MAX_COMPARE) {
+                showToast(`You can compare up to ${MAX_COMPARE} products`, 'warning');
+                return prev;
+            }
+            const next = [...prev, product];
+            saveCompareToStorage(next);
+            showToast('Added to comparison', 'success');
+            return next;
         });
     }, []);
 
@@ -31,7 +61,10 @@ export const CompareProvider: React.FC<{ children: React.ReactNode }> = ({ child
         [compareItems]
     );
 
-    const clearCompare = useCallback(() => setCompareItems([]), []);
+    const clearCompare = useCallback(() => {
+        saveCompareToStorage([]);
+        setCompareItems([]);
+    }, []);
 
     return (
         <CompareContext.Provider

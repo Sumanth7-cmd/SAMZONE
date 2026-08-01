@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Star, Eye, Heart } from 'lucide-react';
+import { ShoppingBag, Star, Eye, Heart, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Product } from '../services/api';
 import { getCart, addToCart as addToCartUtil } from '../utils/cart';
 import { isWishlisted as isProductWishlisted, toggleWishlist as toggleWishlistUtil, WISHLIST_EVENT } from '../utils/wishlist';
+import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 
 interface ProductCardProps {
   product: Product;
@@ -12,17 +13,23 @@ interface ProductCardProps {
 
 const showToast = (text: string, className: string) => {
   const toast = document.createElement('div');
-  toast.className = `fixed bottom-4 right-4 ${className} text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-pulse`;
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
+  toast.className = `toast ${className}`;
   toast.textContent = text;
   document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 2000);
+  setTimeout(() => {
+    toast.classList.add('opacity-0');
+    setTimeout(() => toast.remove(), 300);
+  }, 2000);
 };
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const [wishlisted, setWishlisted] = useState(false);
-  const discountedPrice = product.discount
-    ? product.price * (1 - product.discount / 100)
-    : product.price;
+  const currentPrice = product.price ?? 0;
+  const originalPrice = product.originalPrice ?? currentPrice;
+  const hasDiscount = (product.originalPrice ?? 0) > 0 && currentPrice < originalPrice;
+  const imageSrc = getProductImage(product);
 
   React.useEffect(() => {
     const sync = () => setWishlisted(isProductWishlisted(product.id));
@@ -39,7 +46,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     addToCartUtil({
       id: product.id,
       name: product.name,
-      price: discountedPrice,
+      price: currentPrice,
       image: product.image,
       stock: product.stock,
     });
@@ -64,36 +71,40 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       whileHover={{ y: -5 }}
-      className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group border border-gray-100"
+      className="card-surface group overflow-hidden"
     >
-      <Link to={`/product/${product.id}`} className="block relative aspect-[4/5] overflow-hidden">
+      <Link to={`/product/${product.id}`} className="relative aspect-[4/5] overflow-hidden bg-slate-50 block">
         <motion.img
-          src={product.image}
+          src={imageSrc}
           alt={product.name}
           className="w-full h-full object-cover object-center"
+          loading="lazy"
+          onError={(e) => {
+            e.currentTarget.src = PLACEHOLDER;
+            e.currentTarget.onerror = null;
+          }}
           whileHover={{ scale: 1.05 }}
           transition={{ duration: 0.3 }}
         />
         
         {/* Discount badge */}
         {product.discount && product.discount > 0 && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-md text-xs font-bold"
+            className="badge-pill absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full text-[10px] font-bold"
           >
             -{product.discount.toFixed(0)}%
           </motion.div>
         )}
-        
-        {/* Quick view overlay */}
-        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-          <motion.div 
+
+        <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-slate-950/20 transition-all duration-300 flex items-center justify-center">
+          <motion.div
             className="opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             initial={{ scale: 0.8 }}
             whileHover={{ scale: 1 }}
@@ -102,41 +113,36 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           </motion.div>
         </div>
       </Link>
-      
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-2">
+
+      <div className="p-5 flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <p className="text-xs font-medium text-indigo-600 uppercase tracking-wider mb-1">{product.category}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-indigo-600 mb-1">{product.category || 'Featured'}</p>
             <Link to={`/product/${product.id}`}>
-              <motion.h3 
-                className="text-sm font-bold text-gray-900 mb-1 line-clamp-2 group-hover:text-indigo-600 transition-colors"
+              <motion.h3
+                className="text-base font-semibold text-slate-900 mb-2 line-clamp-2 group-hover:text-indigo-600 transition-colors"
                 whileHover={{ scale: 1.02 }}
               >
                 {product.name}
               </motion.h3>
             </Link>
-            <p className="text-xs text-gray-500 mb-2">{product.brand}</p>
+            <p className="text-sm text-slate-500">{product.brand || 'Premium Brand'}</p>
           </div>
-          
-          {/* Wishlist button */}
+
           <motion.button
             onClick={handleToggleWishlist}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            aria-pressed={wishlisted}
+            aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+            className="p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-red-500 transition-colors"
             whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <Heart
-              className={`w-5 h-5 transition-colors ${
-                wishlisted
-                  ? 'fill-red-500 text-red-500'
-                  : 'text-gray-400 hover:text-red-500'
-              }`}
-            />
+            <Heart className={`w-5 h-5 ${wishlisted ? 'fill-red-500 text-red-500' : ''}`} />
           </motion.button>
         </div>
         
         {/* Rating */}
-        {product.rating && (
+        {product.rating > 0 && (
           <div className="flex items-center mb-3">
             <div className="flex items-center">
               {[...Array(5)].map((_, i) => (
@@ -158,9 +164,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-gray-900">₹{discountedPrice.toLocaleString()}</span>
-              {product.discount && product.discount > 0 && (
-                <span className="text-sm text-gray-500 line-through">₹{product.price.toLocaleString()}</span>
+              <span className="text-lg font-bold text-gray-900">₹{currentPrice.toLocaleString('en-IN')}</span>
+              {hasDiscount && (
+                <span className="text-sm text-gray-500 line-through">₹{originalPrice.toLocaleString('en-IN')}</span>
               )}
             </div>
             {product.stock !== undefined && product.stock <= 10 && (

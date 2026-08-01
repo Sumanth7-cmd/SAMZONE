@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Mic, MicOff, Bot, User, Sparkles, ShoppingBag, X } from 'lucide-react';
-import { productApi, USD_TO_INR_RATE, type Product } from '../services/api';
+import { Send, Mic, MicOff, Bot, User, Sparkles, ShoppingBag, X, ChevronRight } from 'lucide-react';
+import { type Product } from '../services/api';
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
+import { buildShoppingAssistantReply, createEmptyAssistantContext, explainProduct, type AssistantContext } from '../services/conversationalShoppingAssistant';
 
 interface Message {
     id: string;
@@ -13,26 +14,12 @@ interface Message {
     products?: Product[];
 }
 
-const EXACT_GREETINGS = [
-    'hi', 'hello', 'hey', 'hii', 'helo',
-    'how are you', 'how r u', 'whats up', "what's up",
-    'thanks', 'thank you', 'bye', 'goodbye',
-];
-
-const GREETING_RESPONSES = [
-    "Hello! 👋 Welcome to SAMZONE! I'm S.A.M., your Smart Assistant for Modern Shopping. How can I help you today?",
-    "Hey there! Great to see you! I'm here to help you find amazing products and give fashion advice. What are you looking for?",
-    "Hi! Welcome to SAMZONE! I can help you discover products, create outfits, and get style recommendations. What's on your mind?",
-];
-
 const QUICK_REPLIES = [
-    'Show me laptops under ₹50,000',
     'Suggest a wedding outfit',
-    'Best Samsung phones',
-    'Casual shirts under ₹1000',
+    'Casual shirts under ₹2000',
+    'Best sarees for festivals',
+    'Office wear for women',
 ];
-
-const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api`;
 
 const HumanlikeAIChatbot: React.FC = () => {
     const navigate = useNavigate();
@@ -41,32 +28,43 @@ const HumanlikeAIChatbot: React.FC = () => {
     const [isTyping, setIsTyping] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [isMinimized, setIsMinimized] = useState(true);
-    const [lastQuery, setLastQuery] = useState('');
+    const [assistantContext, setAssistantContext] = useState<AssistantContext>(createEmptyAssistantContext());
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<any>(null);
 
     useEffect(() => {
+        let rec: any = null;
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = false;
-            recognitionRef.current.interimResults = true;
-            recognitionRef.current.lang = 'en-US';
+            rec = new SpeechRecognition();
+            recognitionRef.current = rec;
+            rec.continuous = false;
+            rec.interimResults = true;
+            rec.lang = 'en-US';
 
-            recognitionRef.current.onresult = (event: any) => {
+            rec.onresult = (event: any) => {
                 const transcript = event.results[0][0].transcript;
                 setInputText(transcript);
             };
 
-            recognitionRef.current.onerror = () => {
+            rec.onerror = () => {
                 setIsListening(false);
             };
 
-            recognitionRef.current.onend = () => {
+            rec.onend = () => {
                 setIsListening(false);
             };
         }
+        return () => {
+            if (rec) {
+                try {
+                    rec.abort();
+                } catch (e) {
+                    console.error('Speech recognition abort error:', e);
+                }
+            }
+        };
     }, []);
 
     const scrollToBottom = () => {
@@ -77,7 +75,7 @@ const HumanlikeAIChatbot: React.FC = () => {
         scrollToBottom();
     }, [messages]);
 
-    const simulateStreamingResponse = async (response: string, products: Product[] = []) => {
+    const simulateStreamingResponse = async (response: string, products: Product[] = [], reasoning: string[] = []) => {
         const words = response.split(' ');
         let currentText = '';
 
@@ -95,7 +93,7 @@ const HumanlikeAIChatbot: React.FC = () => {
                 return newMessages;
             });
 
-            await new Promise(resolve => setTimeout(resolve, 30));
+            await new Promise(resolve => setTimeout(resolve, 25));
         }
 
         setMessages(prev => {
@@ -104,6 +102,7 @@ const HumanlikeAIChatbot: React.FC = () => {
             if (lastMessage) {
                 lastMessage.isTyping = false;
                 lastMessage.products = products;
+                lastMessage.text = response + (reasoning.length > 0 ? `\n\nWhy these picks:\n• ${reasoning.join('\n• ')}` : '');
             }
             return newMessages;
         });
@@ -135,55 +134,21 @@ const HumanlikeAIChatbot: React.FC = () => {
         };
         setMessages(prev => [...prev, aiMessage]);
 
-        const lower = text.toLowerCase().trim();
-        const isGreeting = EXACT_GREETINGS.some(g =>
-            lower === g || lower === g + '!' || lower === g + '.'
-        );
-        if (isGreeting) {
-            const greeting = GREETING_RESPONSES[Math.floor(Math.random() * GREETING_RESPONSES.length)];
-            await simulateStreamingResponse(greeting, []);
-            return;
-        }
-
         try {
-            console.log('[SAM AI] calling /api/chat with:', text);
-            const res = await fetch(`${API_BASE_URL}/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text }),
-            });
-            const data = await res.json();
-            const rawProducts: any[] = data?.products ?? [];
-            let products: Product[] = rawProducts.map((p) => ({
-                ...p,
-                price: (p.price ?? 0) * USD_TO_INR_RATE,
+            const assistantReply = await buildShoppingAssistantReply(text, assistantContext);
+            const reasoning = assistantReply.products.map((product) => explainProduct(product, assistantReply.context, text, {
+                category: assistantReply.context.lastCategory,
+                brand: assistantReply.context.lastBrand,
+                minPrice: assistantReply.context.lastBudgetMin,
+                maxPrice: assistantReply.context.lastBudgetMax,
             }));
-            // Use the backend's own reply (varied templates, occasion/budget
-            // callouts, etc.) instead of overwriting it with a generic line.
-            let reply: string = data?.reply || (products.length > 0
-                ? `I found ${products.length} products for you! 🛍️`
-                : "I couldn't find exact matches. Here are some popular items:");
 
-            if (products.length === 0) {
-                try {
-                    const popular = await productApi.getProducts(0, 12, {
-                        sortBy: 'rating',
-                        sortDir: 'desc',
-                    });
-                    products = [...popular.content].sort(() => Math.random() - 0.5).slice(0, 3);
-                } catch {
-                    // leave products empty if the popular-items fallback also fails
-                }
-            }
-
-            if (products.length > 0) {
-                setLastQuery(text);
-            }
-
-            await simulateStreamingResponse(reply, products);
+            const flattenedReasoning = reasoning.flatMap((entry) => entry).slice(0, 4);
+            await simulateStreamingResponse(assistantReply.reply, assistantReply.products, flattenedReasoning);
+            setAssistantContext(assistantReply.context);
         } catch (err) {
             await simulateStreamingResponse(
-                "Sorry, I'm having trouble connecting right now. Please try again in a moment.",
+                "Sorry, I hit a snag while narrowing the catalog. I can still help by broadening the search or focusing on a specific brand and price range.",
                 []
             );
         }
@@ -215,10 +180,11 @@ const HumanlikeAIChatbot: React.FC = () => {
     const FOLLOW_UP_CHIPS = ['Show more like these', 'Under ₹1000', 'Different color'];
 
     const handleFollowUpChip = (chip: string) => {
-        const base = lastQuery || 'products';
         const followUpText = chip === 'Show more like these'
-            ? `more ${base}`
-            : `${base} ${chip.toLowerCase()}`;
+            ? 'Show more like these'
+            : chip === 'Under ₹1000'
+                ? 'Show cheaper options under ₹1000'
+                : 'Show different color options';
         handleSend(followUpText);
     };
 
@@ -329,19 +295,27 @@ const HumanlikeAIChatbot: React.FC = () => {
                                                                 e.currentTarget.onerror = null;
                                                             }}
                                                         />
-                                                        <h5 className="font-medium text-sm text-gray-900 line-clamp-1">
-                                                            {product.name?.slice(0, 25)}
+                                                        <h5 className="font-medium text-sm text-gray-900 line-clamp-2">
+                                                            {product.name}
                                                         </h5>
-                                                        <p className="text-xs text-gray-600">{product.brand}</p>
+                                                        <p className="text-xs text-gray-600">{product.brand || 'Premium pick'}</p>
                                                         <p className="text-sm font-bold text-purple-900">
                                                             ₹{Number(product.price ?? 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                                                         </p>
-                                                        <button
-                                                            onClick={() => navigate(`/product/${product.id}`)}
-                                                            className="mt-2 w-full text-xs bg-purple-600 text-white py-1 rounded hover:bg-purple-700 transition-colors"
-                                                        >
-                                                            View
-                                                        </button>
+                                                        <div className="mt-2 flex gap-2">
+                                                            <button
+                                                                onClick={() => navigate(`/product/${product.id}`)}
+                                                                className="flex-1 text-xs bg-purple-600 text-white py-1 rounded hover:bg-purple-700 transition-colors"
+                                                            >
+                                                                View
+                                                            </button>
+                                                            <button
+                                                                onClick={() => navigate('/cart')}
+                                                                className="text-xs border border-gray-200 text-gray-700 py-1 px-2 rounded hover:bg-gray-50 transition-colors"
+                                                            >
+                                                                Cart
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -402,28 +376,28 @@ const HumanlikeAIChatbot: React.FC = () => {
                             {/* Quick Actions */}
                             <div className="flex gap-2 mt-3 flex-wrap">
                                 <button
-                                    onClick={() => handleQuickAction('Show me shirts')}
+                                    onClick={() => handleQuickAction('Show me kurtas')}
                                     className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium hover:bg-purple-200 transition-colors"
                                 >
-                                    🛍️ Show me shirts
+                                    👗 Kurtas
                                 </button>
                                 <button
-                                    onClick={() => handleQuickAction('Outfit ideas')}
+                                    onClick={() => handleQuickAction('Outfit ideas for party')}
                                     className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium hover:bg-purple-200 transition-colors"
                                 >
-                                    🎨 Outfit ideas
+                                    🎨 Party outfits
                                 </button>
                                 <button
-                                    onClick={() => handleQuickAction('Show me laptops')}
+                                    onClick={() => handleQuickAction('Show me jeans')}
                                     className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium hover:bg-purple-200 transition-colors"
                                 >
-                                    💻 Laptops
+                                    👖 Jeans
                                 </button>
                                 <button
-                                    onClick={() => handleQuickAction('Party wear')}
+                                    onClick={() => handleQuickAction('Sarees under ₹2000')}
                                     className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium hover:bg-purple-200 transition-colors"
                                 >
-                                    🎉 Party wear
+                                    🥻 Sarees
                                 </button>
                             </div>
                         </div>

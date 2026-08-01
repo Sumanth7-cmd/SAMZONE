@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Sparkles, ShoppingBag, Zap, Star, Camera } from 'lucide-react';
+import CategoryGrid from '../components/CategoryGrid';
 import { getRecommendations } from '../services/recommendationService';
 import { productApi } from '../services/api';
 import type { Product } from '../services/api';
@@ -125,6 +126,9 @@ const Home: React.FC = () => {
                     </div>
                 </div>
             </section>
+
+            {/* Category Landing Grid */}
+            <CategoryGrid />
 
             {/* Skin Guide Banner */}
             <section className="py-12 bg-gradient-to-r from-purple-600 to-pink-500">

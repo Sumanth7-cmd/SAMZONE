@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Filter, Search, ShoppingCart, Sparkles, TrendingUp } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { addToCart } from '../utils/cart';
+import { toggleWishlist, isWishlisted } from '../utils/wishlist';
+import { Filter, Search, ShoppingCart, Sparkles, TrendingUp, Heart } from 'lucide-react';
 import {
     searchProducts,
     CATEGORY_OPTIONS,
@@ -46,6 +48,7 @@ const CleanProductGrid: React.FC = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
     // Keep the search box in sync if q changes from elsewhere (e.g. a navbar
     // link to /shop?q=sneakers) without fighting the user mid-keystroke.
@@ -98,12 +101,17 @@ const CleanProductGrid: React.FC = () => {
         })
             .then((result) => {
                 if (cancelled) return;
+                console.log('[shop-ui] final rows rendered', { count: result.products.length, rows: result.products.slice(0, 3) });
                 setProducts(result.products);
                 setTotalCount(result.totalCount);
                 setTotalPages(result.totalPages);
             })
-            .catch(() => {
-                if (!cancelled) setError(true);
+            .catch((err) => {
+                console.error('Product fetch error:', err);
+                if (!cancelled) {
+                  setError(true);
+                  setErrorMessage(err?.message || String(err));
+                }
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -137,43 +145,79 @@ const CleanProductGrid: React.FC = () => {
         return result;
     };
 
-    const ProductCard = ({ product }: { product: CatalogProduct }) => (
-        <div className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 h-full flex flex-col">
-            <div className="relative overflow-hidden">
+    const ProductCard = ({ product }: { product: CatalogProduct }) => {
+        const [liked, setLiked] = useState(() => isWishlisted(product.id));
+
+        return (
+        <Link to={`/product/${product.id}`} className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 h-full flex flex-col">
+            <div className="relative aspect-[3/4] overflow-hidden flex items-center justify-center bg-gray-50">
                 <img
-                    src={product.image_url}
-                    alt={product.product_name}
-                    className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500"
+                    src={product.image_url || 'https://rukminim2.flixcart.com/image/416/416/xif0q/shirt/t/u/p/-original-imaghgccgfnbhzxh.jpeg?q=70'}
+                    alt={product.name}
+                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                        e.currentTarget.src = 'https://rukminim2.flixcart.com/image/416/416/xif0q/shirt/t/u/p/-original-imaghgccgfnbhzxh.jpeg?q=70';
+                        e.currentTarget.onerror = null;
+                    }}
                 />
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        setLiked(toggleWishlist(product.id));
+                    }}
+                    className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white text-gray-400 hover:text-red-500 transition-all duration-200 z-10"
+                >
+                    <Heart className={`w-5 h-5 ${liked ? 'fill-red-500 text-red-500' : ''}`} />
+                </button>
             </div>
 
             <div className="p-4 flex flex-col flex-1">
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1 truncate">
-                    {product.article_type}
+                    {product.category_path}
                 </p>
 
                 <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 leading-tight min-h-[3.5rem]">
-                    {product.product_name}
+                    {product.name}
                 </h3>
 
+                {product.brand && (
+                    <p className="text-sm text-gray-600 mb-2 truncate">{product.brand}</p>
+                )}
+
                 <div className="flex items-center justify-between mb-3">
-                    <span className="text-xl font-bold text-gray-900">
-                        ₹{product.price.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                    </span>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-bold text-gray-900">
+                            ₹{product.price.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        </span>
+                        {product.discount_percentage != null && (
+                            <span className="text-xs font-semibold text-green-600">
+                                {product.discount_percentage}% off
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 <button
-                    disabled
-                    title="Cart isn't wired up for this collection yet - coming soon"
-                    className="mt-auto w-full bg-gray-200 text-gray-500 py-2 rounded-lg flex items-center justify-center gap-2 cursor-not-allowed"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        addToCart({
+                            id: product.id,
+                            name: product.name,
+                            price: product.price,
+                            image: product.image_url
+                        });
+                    }}
+                    className="mt-auto w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
                 >
                     <ShoppingCart className="w-4 h-4" />
                     Add to Cart
                 </button>
             </div>
-        </div>
-    );
+        </Link>
+        );
+    };
 
     return (
         <div className="min-h-screen bg-gray-50">

@@ -10,7 +10,7 @@ import {
     Shield,
     Truck,
     RefreshCw,
-    HeadphonesIcon,
+    Headphones,
     Star
 } from 'lucide-react';
 
@@ -21,7 +21,7 @@ const PremiumFooter: React.FC = () => {
         { name: 'Contact Us', icon: Phone, description: 'Mon-Sat: 9AM-9PM' },
         { name: 'Track Order', icon: Truck, description: 'Real-time tracking' },
         { name: 'Returns & Refunds', icon: RefreshCw, description: '30-day return policy' },
-        { name: 'Customer Support', icon: HeadphonesIcon, description: '24/7 assistance' }
+        { name: 'Customer Support', icon: Headphones, description: '24/7 assistance' }
     ];
 
     const paymentMethods = [

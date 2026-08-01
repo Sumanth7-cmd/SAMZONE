@@ -111,6 +111,9 @@ public class StylistService {
     private static final List<String> WOMEN_FOOTWEAR_TERMS =
             List.of("heel", "sandal", "flat", "footwear", "sneaker");
 
+    private static final List<String> FASHION_ACCESSORY_TERMS =
+            List.of("watch", "sunglasses", "belt", "bag", "wallet", "accessory");
+
     @Value("${gemini.api.key:}")
     private String geminiApiKey;
 
@@ -333,12 +336,18 @@ public class StylistService {
     private List<OutfitSlot> buildSlots(boolean isWomen, String occasionKey, Double budgetUsd) {
         List<OutfitSlot> slots = new ArrayList<>();
         if (isWomen) {
-            slots.add(new OutfitSlot("topwear", fetchSlotCandidates("Women's Clothing",
+            slots.add(new OutfitSlot("topwear", fetchSlotCandidates(
+                    List.of("Women's Clothing", "Shirts", "Dresses"),
                     termsFor(WOMEN_TOP_TERMS, WOMEN_TOP_DEFAULT, occasionKey), budgetUsd)));
-            slots.add(new OutfitSlot("bottomwear", fetchSlotCandidates("Women's Clothing",
+            slots.add(new OutfitSlot("bottomwear", fetchSlotCandidates(
+                    List.of("Women's Clothing", "Pants"),
                     termsFor(WOMEN_BOTTOM_TERMS, WOMEN_BOTTOM_DEFAULT, occasionKey), budgetUsd)));
-            slots.add(new OutfitSlot("footwear", fetchSlotCandidates("Accessories", WOMEN_FOOTWEAR_TERMS, budgetUsd)));
-            slots.add(new OutfitSlot("accessory", fetchSlotCandidates("Accessories", List.of(), budgetUsd)));
+            slots.add(new OutfitSlot("footwear", fetchSlotCandidates(
+                    List.of("Shoes", "Accessories"),
+                    WOMEN_FOOTWEAR_TERMS, budgetUsd)));
+            slots.add(new OutfitSlot("accessory", fetchSlotCandidates(
+                    List.of("Accessories"),
+                    FASHION_ACCESSORY_TERMS, budgetUsd)));
 
             Set<Long> footwearIds = slots.get(2).candidates.stream().map(Product::getId).collect(Collectors.toSet());
             List<Product> accessoryOnly = slots.get(3).candidates.stream()
@@ -347,39 +356,73 @@ public class StylistService {
                 slots.set(3, new OutfitSlot("accessory", accessoryOnly));
             }
         } else {
-            slots.add(new OutfitSlot("topwear", fetchSlotCandidates("Men's Clothing",
+            slots.add(new OutfitSlot("topwear", fetchSlotCandidates(
+                    List.of("Men's Clothing", "Shirts"),
                     termsFor(MEN_TOP_TERMS, MEN_TOP_DEFAULT, occasionKey), budgetUsd)));
-            slots.add(new OutfitSlot("bottomwear", fetchSlotCandidates("Men's Clothing",
+            slots.add(new OutfitSlot("bottomwear", fetchSlotCandidates(
+                    List.of("Men's Clothing", "Pants"),
                     termsFor(MEN_BOTTOM_TERMS, MEN_BOTTOM_DEFAULT, occasionKey), budgetUsd)));
-            slots.add(new OutfitSlot("footwear", fetchSlotCandidates("Men's Footwear", List.of(), budgetUsd)));
-            slots.add(new OutfitSlot("accessory", fetchSlotCandidates("Accessories", List.of(), budgetUsd)));
+            slots.add(new OutfitSlot("footwear", fetchSlotCandidates(
+                    List.of("Men's Footwear", "Shoes"),
+                    List.of("shoe", "sneaker", "boot", "loafer"), budgetUsd)));
+            slots.add(new OutfitSlot("accessory", fetchSlotCandidates(
+                    List.of("Accessories"),
+                    FASHION_ACCESSORY_TERMS, budgetUsd)));
         }
-        return slots.stream().filter(s -> !s.candidates.isEmpty()).collect(Collectors.toList());
+        return slots;
     }
 
-    private List<Product> fetchSlotCandidates(String category, List<String> terms, Double maxPriceUsd) {
-        // Once we've had to drop the budget cap because nothing matched, sort by
-        // price ascending instead of rating - otherwise a wildly overpriced outlier
-        // (e.g. a mis-scaled import) can win purely on rating and blow the budget.
+    private static final Set<String> NON_FASHION_TERMS = Set.of(
+            "placemat", "bedsheet", "curtain", "lamp", "chair", "desk", "clock", "table", "mat",
+            "laptop", "mobile", "camera", "toy", "speaker", "headphones", "mouse", "keyboard", "racket");
+
+    private boolean isFashionItem(Product p) {
+        if (p == null || p.getCategory() == null) return false;
+        String cat = p.getCategory().toLowerCase();
+        if (cat.contains("home") || cat.contains("electronic") || cat.contains("toy") || cat.contains("book")
+                || cat.contains("sport") || cat.contains("beauty") || cat.contains("camera")) {
+            return false;
+        }
+        String name = p.getName() != null ? p.getName().toLowerCase() : "";
+        for (String term : NON_FASHION_TERMS) {
+            if (name.contains(term)) return false;
+        }
+        return true;
+    }
+
+    private List<Product> fetchSlotCandidates(List<String> categories, List<String> terms, Double maxPriceUsd) {
         Sort sort = maxPriceUsd != null ? Sort.by("rating").descending() : Sort.by("price").ascending();
         Pageable pageable = PageRequest.of(0, CANDIDATES_PER_SLOT, sort);
         Map<Long, Product> found = new LinkedHashMap<>();
 
-        if (terms.isEmpty()) {
-            productRepository.findByFilters(category, null, null, null, maxPriceUsd, null, pageable)
-                    .forEach(p -> found.putIfAbsent(p.getId(), p));
-        } else {
-            for (String term : terms) {
-                if (found.size() >= CANDIDATES_PER_SLOT) {
-                    break;
+        for (String category : categories) {
+            if (found.size() >= CANDIDATES_PER_SLOT) break;
+
+            if (terms != null && !terms.isEmpty()) {
+                for (String term : terms) {
+                    if (found.size() >= CANDIDATES_PER_SLOT) break;
+                    productRepository.findByFilters(category, null, term, null, maxPriceUsd, null, pageable)
+                            .forEach(p -> {
+                                if (isFashionItem(p)) found.putIfAbsent(p.getId(), p);
+                            });
                 }
-                productRepository.findByFilters(category, null, term, null, maxPriceUsd, null, pageable)
-                        .forEach(p -> found.putIfAbsent(p.getId(), p));
+            }
+            if (found.size() < CANDIDATES_PER_SLOT) {
+                productRepository.findByFilters(category, null, null, null, maxPriceUsd, null, pageable)
+                        .forEach(p -> {
+                            if (isFashionItem(p)) found.putIfAbsent(p.getId(), p);
+                        });
             }
         }
 
         if (found.isEmpty() && maxPriceUsd != null) {
-            return fetchSlotCandidates(category, terms, null);
+            return fetchSlotCandidates(categories, terms, null);
+        }
+        if (found.isEmpty()) {
+            productRepository.findByFilters(null, null, null, null, null, null, pageable)
+                    .forEach(p -> {
+                        if (isFashionItem(p)) found.putIfAbsent(p.getId(), p);
+                    });
         }
         return new ArrayList<>(found.values());
     }

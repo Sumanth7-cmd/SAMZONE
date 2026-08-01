@@ -721,12 +721,28 @@ public class ChatService {
         return List.of();
     }
 
+    private static final Set<String> FASHION_CATEGORIES = Set.of(
+            "men's clothing", "women's clothing", "accessories", "men's footwear",
+            "shirts", "pants", "shoes", "dresses", "jackets", "t-shirts", "trousers",
+            "hoodies", "kurtas", "sweaters", "skirts", "sarees");
+
+    private static final Set<String> NON_FASHION_KEYWORDS = Set.of(
+            "placemat", "bedsheet", "curtain", "lamp", "chair", "desk", "clock", "table", "mat",
+            "laptop", "mobile", "camera", "toy", "speaker", "headphones", "mouse", "keyboard", "racket");
+
     private boolean isFashionCategoryProduct(Product product) {
-        String category = product.getCategory();
-        return category != null
-                && (category.equals("Men's Clothing")
-                        || category.equals("Women's Clothing")
-                        || category.equals("Accessories"));
+        if (product == null || product.getCategory() == null) return false;
+        String category = product.getCategory().toLowerCase();
+        if (category.contains("home") || category.contains("electronic") || category.contains("toy") || category.contains("book")
+                || category.contains("sport") || category.contains("beauty") || category.contains("camera")) {
+            return false;
+        }
+        if (FASHION_CATEGORIES.contains(category)) return true;
+        String name = product.getName() != null ? product.getName().toLowerCase() : "";
+        for (String bad : NON_FASHION_KEYWORDS) {
+            if (name.contains(bad)) return false;
+        }
+        return FASHION_KEYWORDS.stream().anyMatch(name::contains);
     }
 
     private static final Set<String> NON_GARMENT_FASHION_WORDS = Set.of(
@@ -738,19 +754,18 @@ public class ChatService {
         Double minPrice = priceRange != null ? priceRange[0] : null;
         Double maxPrice = priceRange != null ? priceRange[1] : null;
 
-        String primaryCategory = isWomens ? "Women's Clothing" : "Men's Clothing";
-        String secondaryCategory = isWomens ? "Men's Clothing" : "Women's Clothing";
+        List<String> categoriesToSearch = isWomens
+                ? List.of("Women's Clothing", "Shirts", "Pants", "Dresses", "Shoes", "Accessories")
+                : List.of("Men's Clothing", "Shirts", "Pants", "Men's Footwear", "Shoes", "Accessories");
 
         String colorHint = BASIC_COLORS.stream().filter(lower::contains).findFirst().orElse(null);
         String garmentKeyword = extractGarmentItem(lower);
 
-        // Prefer matching the actual garment named in the message (e.g. "shirt", "kurta")
-        // over just returning the top-rated item in the category, which can be unrelated.
         if (garmentKeyword != null) {
-            for (String category : List.of(primaryCategory, secondaryCategory)) {
+            for (String category : categoriesToSearch) {
                 List<Product> matches = productRepository
                         .findByFilters(category, null, garmentKeyword, minPrice, maxPrice, null, pageable)
-                        .getContent();
+                        .getContent().stream().filter(this::isFashionCategoryProduct).collect(Collectors.toList());
                 if (matches.isEmpty()) {
                     continue;
                 }
@@ -764,30 +779,37 @@ public class ChatService {
                 }
                 return matches;
             }
+
+            // Also try global filter search by garment keyword
+            List<Product> globalGarment = productRepository
+                    .findByFilters(null, null, garmentKeyword, minPrice, maxPrice, null, pageable)
+                    .getContent().stream().filter(this::isFashionCategoryProduct).collect(Collectors.toList());
+            if (!globalGarment.isEmpty()) {
+                return globalGarment;
+            }
         }
 
         if (colorHint != null) {
-            for (String category : List.of(primaryCategory, secondaryCategory)) {
+            for (String category : categoriesToSearch) {
                 List<Product> colorResults = productRepository
                         .findByFilters(category, null, colorHint, minPrice, maxPrice, null, pageable)
-                        .getContent();
+                        .getContent().stream().filter(this::isFashionCategoryProduct).collect(Collectors.toList());
                 if (!colorResults.isEmpty()) {
                     return colorResults;
                 }
             }
         }
 
-        List<Product> results = productRepository
-                .findByFilters(primaryCategory, null, null, minPrice, maxPrice, null, pageable).getContent();
-        if (results.isEmpty()) {
-            results = productRepository
-                    .findByFilters(secondaryCategory, null, null, minPrice, maxPrice, null, pageable).getContent();
+        for (String category : categoriesToSearch) {
+            List<Product> results = productRepository
+                    .findByFilters(category, null, null, minPrice, maxPrice, null, pageable)
+                    .getContent().stream().filter(this::isFashionCategoryProduct).collect(Collectors.toList());
+            if (!results.isEmpty()) {
+                return results;
+            }
         }
-        if (results.isEmpty()) {
-            results = productRepository
-                    .findByFilters("Accessories", null, null, minPrice, maxPrice, null, pageable).getContent();
-        }
-        return results;
+
+        return List.of();
     }
 
     private boolean matchesColor(Product product, String colorHint) {

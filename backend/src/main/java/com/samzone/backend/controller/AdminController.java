@@ -4,6 +4,8 @@ import com.samzone.backend.entity.Product;
 import com.samzone.backend.repository.ProductRepository;
 import com.samzone.backend.service.CategoryImages;
 import com.samzone.backend.service.FashionCatalogSeeder;
+import com.samzone.backend.dto.ImportResult;
+import com.samzone.backend.service.DressImportService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,8 +43,16 @@ public class AdminController {
     @Autowired
     private FashionCatalogSeeder fashionCatalogSeeder;
 
+    @Autowired
+    private DressImportService dressImportService;
+
     @PersistenceContext
     private EntityManager entityManager;
+
+    @PostMapping("/import-dresses")
+    public ResponseEntity<ImportResult> importDresses() {
+        return ResponseEntity.ok(dressImportService.importDresses());
+    }
 
     @PostMapping("/seed-fashion")
     public ResponseEntity<Map<String, Object>> seedFashion() {

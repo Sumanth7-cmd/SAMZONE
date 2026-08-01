@@ -1,9 +1,26 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Camera, CameraOff, X, Plus, Minus, RotateCw, Shirt, Maximize2, Minimize2, Download, RefreshCw, ShoppingCart, Sparkles, Upload } from 'lucide-react';
-import type { Product } from '../data/massiveProductCatalog';
 import { productApi } from '../services/api';
 import type { Product as ApiProduct } from '../services/api';
+
+export interface Product {
+    id: number;
+    name: string;
+    price: number;
+    image: string;
+    category: string;
+    subcategory?: string;
+    brand?: string;
+    rating?: number;
+    colors?: string[];
+    sizes?: string[];
+    description?: string;
+    inStock?: boolean;
+    discount?: number;
+    tags?: string[];
+}
+
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
 
@@ -47,6 +64,7 @@ interface Placement {
 }
 
 const SIZE_SCALE_FACTOR: Record<string, number> = { S: 0.85, M: 1.0, L: 1.15, XL: 1.3 };
+const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 
 const getPlacement = (product: Product, canvasW: number, canvasH: number): Placement => {
     const lowerName = product.name?.toLowerCase() || '';
@@ -145,6 +163,10 @@ const FixedWebcamTryOn: React.FC = () => {
             setError('Please select a valid image file');
             return;
         }
+        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+            setError('Image size should be less than 10MB');
+            return;
+        }
 
         setError(null);
         const reader = new FileReader();
@@ -152,6 +174,7 @@ const FixedWebcamTryOn: React.FC = () => {
             setUploadedPhoto(ev.target?.result as string);
             stopWebcam();
         };
+        reader.onerror = () => setError('Unable to read this image. Please try another file.');
         reader.readAsDataURL(file);
     }, []);
 

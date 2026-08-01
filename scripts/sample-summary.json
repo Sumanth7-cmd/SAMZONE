@@ -1,0 +1,1499 @@
+{
+  "totalRead": 1426337,
+  "malformedSkipped": 0,
+  "categoriesRepresented": 242,
+  "totalCategories": 248,
+  "duplicatesSkipped": 0,
+  "imported": 0,
+  "failed": 8000,
+  "categoryBreakdown": [
+    {
+      "category_id": 104,
+      "category_name": "Suitcases",
+      "sourceCount": 924,
+      "sampledTarget": 5
+    },
+    {
+      "category_id": 110,
+      "category_name": "Men's Clothing",
+      "sourceCount": 18258,
+      "sampledTarget": 102
+    },
+    {
+      "category_id": 245,
+      "category_name": "Xbox 360 Games, Consoles & Accessories",
+      "sourceCount": 3809,
+      "sampledTarget": 21
+    },
+    {
+      "category_id": 114,
+      "category_name": "Men's Shoes",
+      "sourceCount": 19822,
+      "sampledTarget": 111
+    },
+    {
+      "category_id": 112,
+      "category_name": "Men's Accessories",
+      "sourceCount": 17679,
+      "sampledTarget": 99
+    },
+    {
+      "category_id": 175,
+      "category_name": "Vacuum Cleaners & Floor Care",
+      "sourceCount": 8283,
+      "sampledTarget": 46
+    },
+    {
+      "category_id": 69,
+      "category_name": "Televisions & Video Products",
+      "sourceCount": 8823,
+      "sampledTarget": 49
+    },
+    {
+      "category_id": 157,
+      "category_name": "Additive Manufacturing Products",
+      "sourceCount": 7619,
+      "sampledTarget": 43
+    },
+    {
+      "category_id": 71,
+      "category_name": "Headphones & Earbuds",
+      "sourceCount": 9242,
+      "sampledTarget": 52
+    },
+    {
+      "category_id": 251,
+      "category_name": "PlayStation Vita Games, Consoles & Accessories",
+      "sourceCount": 593,
+      "sampledTarget": 3
+    },
+    {
+      "category_id": 252,
+      "category_name": "Wii U Games, Consoles & Accessories",
+      "sourceCount": 968,
+      "sampledTarget": 5
+    },
+    {
+      "category_id": 253,
+      "category_name": "PlayStation 4 Games, Consoles & Accessories",
+      "sourceCount": 6188,
+      "sampledTarget": 35
+    },
+    {
+      "category_id": 89,
+      "category_name": "Boys' Watches",
+      "sourceCount": 492,
+      "sampledTarget": 3
+    },
+    {
+      "category_id": 91,
+      "category_name": "Girls' Clothing",
+      "sourceCount": 28619,
+      "sampledTarget": 160
+    },
+    {
+      "category_id": 84,
+      "category_name": "Boys' Clothing",
+      "sourceCount": 24660,
+      "sampledTarget": 138
+    },
+    {
+      "category_id": 31,
+      "category_name": "Pregnancy & Maternity Products",
+      "sourceCount": 1343,
+      "sampledTarget": 8
+    },
+    {
+      "category_id": 53,
+      "category_name": "Shaving & Hair Removal Products",
+      "sourceCount": 7626,
+      "sampledTarget": 43
+    },
+    {
+      "category_id": 2,
+      "category_name": "Fabric Decorating",
+      "sourceCount": 2179,
+      "sampledTarget": 12
+    },
+    {
+      "category_id": 140,
+      "category_name": "Industrial Materials",
+      "sourceCount": 7839,
+      "sampledTarget": 44
+    },
+    {
+      "category_id": 190,
+      "category_name": "Smart Home: Security Cameras and Systems",
+      "sourceCount": 276,
+      "sampledTarget": 2
+    },
+    {
+      "category_id": 72,
+      "category_name": "Office Electronics",
+      "sourceCount": 9480,
+      "sampledTarget": 53
+    },
+    {
+      "category_id": 228,
+      "category_name": "Sports & Outdoor Play Toys",
+      "sourceCount": 9485,
+      "sampledTarget": 53
+    },
+    {
+      "category_id": 239,
+      "category_name": "Kids' Play Tractors",
+      "sourceCount": 455,
+      "sampledTarget": 3
+    },
+    {
+      "category_id": 240,
+      "category_name": "Slot Cars, Race Tracks & Accessories",
+      "sourceCount": 1366,
+      "sampledTarget": 8
+    },
+    {
+      "category_id": 255,
+      "category_name": "Video Games",
+      "sourceCount": 5310,
+      "sampledTarget": 30
+    },
+    {
+      "category_id": 186,
+      "category_name": "Smart Home: Voice Assistants and Hubs",
+      "sourceCount": 50,
+      "sampledTarget": 0
+    },
+    {
+      "category_id": 206,
+      "category_name": "Light Bulbs",
+      "sourceCount": 9254,
+      "sampledTarget": 52
+    },
+    {
+      "category_id": 270,
+      "category_name": "Toys & Games",
+      "sourceCount": 20846,
+      "sampledTarget": 117
+    },
+    {
+      "category_id": 124,
+      "category_name": "Kids' Furniture",
+      "sourceCount": 6568,
+      "sampledTarget": 37
+    },
+    {
+      "category_id": 16,
+      "category_name": "Automotive Tires & Wheels",
+      "sourceCount": 9396,
+      "sampledTarget": 53
+    },
+    {
+      "category_id": 128,
+      "category_name": "Wellness & Relaxation Products",
+      "sourceCount": 4758,
+      "sampledTarget": 27
+    },
+    {
+      "category_id": 17,
+      "category_name": "Automotive Tools & Equipment",
+      "sourceCount": 8195,
+      "sampledTarget": 46
+    },
+    {
+      "category_id": 230,
+      "category_name": "Baby & Toddler Toys",
+      "sourceCount": 9020,
+      "sampledTarget": 51
+    },
+    {
+      "category_id": 237,
+      "category_name": "Kids' Play Boats",
+      "sourceCount": 438,
+      "sampledTarget": 2
+    },
+    {
+      "category_id": 56,
+      "category_name": "Computer Monitors",
+      "sourceCount": 3584,
+      "sampledTarget": 20
+    },
+    {
+      "category_id": 95,
+      "category_name": "Girls' Jewelry",
+      "sourceCount": 18514,
+      "sampledTarget": 104
+    },
+    {
+      "category_id": 108,
+      "category_name": "Luggage",
+      "sourceCount": 3267,
+      "sampledTarget": 18
+    },
+    {
+      "category_id": 4,
+      "category_name": "Printmaking Supplies",
+      "sourceCount": 5734,
+      "sampledTarget": 32
+    },
+    {
+      "category_id": 118,
+      "category_name": "Women's Handbags",
+      "sourceCount": 18994,
+      "sampledTarget": 107
+    },
+    {
+      "category_id": 51,
+      "category_name": "Foot, Hand & Nail Care Products",
+      "sourceCount": 9535,
+      "sampledTarget": 53
+    },
+    {
+      "category_id": 30,
+      "category_name": "Baby & Toddler Feeding Supplies",
+      "sourceCount": 7650,
+      "sampledTarget": 43
+    },
+    {
+      "category_id": 81,
+      "category_name": "Computers",
+      "sourceCount": 7409,
+      "sampledTarget": 42
+    },
+    {
+      "category_id": 165,
+      "category_name": "Home Décor Products",
+      "sourceCount": 8189,
+      "sampledTarget": 46
+    },
+    {
+      "category_id": 141,
+      "category_name": "Industrial Hardware",
+      "sourceCount": 9364,
+      "sampledTarget": 53
+    },
+    {
+      "category_id": 24,
+      "category_name": "Automotive Exterior Accessories",
+      "sourceCount": 8536,
+      "sampledTarget": 48
+    },
+    {
+      "category_id": 49,
+      "category_name": "Skin Care Products",
+      "sourceCount": 8074,
+      "sampledTarget": 45
+    },
+    {
+      "category_id": 68,
+      "category_name": "Wearable Technology",
+      "sourceCount": 8089,
+      "sampledTarget": 45
+    },
+    {
+      "category_id": 183,
+      "category_name": "Reptiles & Amphibian Supplies",
+      "sourceCount": 3583,
+      "sampledTarget": 20
+    },
+    {
+      "category_id": 195,
+      "category_name": "Smart Home: Lawn and Garden",
+      "sourceCount": 76,
+      "sampledTarget": 0
+    },
+    {
+      "category_id": 182,
+      "category_name": "Horse Supplies",
+      "sourceCount": 3865,
+      "sampledTarget": 22
+    },
+    {
+      "category_id": 216,
+      "category_name": "Kids' Party Supplies",
+      "sourceCount": 4241,
+      "sampledTarget": 24
+    },
+    {
+      "category_id": 58,
+      "category_name": "Tablet Replacement Parts",
+      "sourceCount": 2521,
+      "sampledTarget": 14
+    },
+    {
+      "category_id": 35,
+      "category_name": "Baby Care Products",
+      "sourceCount": 6676,
+      "sampledTarget": 37
+    },
+    {
+      "category_id": 222,
+      "category_name": "Kids' Electronics",
+      "sourceCount": 4295,
+      "sampledTarget": 24
+    },
+    {
+      "category_id": 1,
+      "category_name": "Beading & Jewelry Making",
+      "sourceCount": 8246,
+      "sampledTarget": 46
+    },
+    {
+      "category_id": 66,
+      "category_name": "Computer External Components",
+      "sourceCount": 2507,
+      "sampledTarget": 14
+    },
+    {
+      "category_id": 166,
+      "category_name": "Furniture",
+      "sourceCount": 5829,
+      "sampledTarget": 33
+    },
+    {
+      "category_id": 260,
+      "category_name": "Nintendo Switch Consoles, Games & Accessories",
+      "sourceCount": 5761,
+      "sampledTarget": 32
+    },
+    {
+      "category_id": 13,
+      "category_name": "Party Decorations",
+      "sourceCount": 8611,
+      "sampledTarget": 48
+    },
+    {
+      "category_id": 76,
+      "category_name": "Accessories & Supplies",
+      "sourceCount": 4226,
+      "sampledTarget": 24
+    },
+    {
+      "category_id": 146,
+      "category_name": "Industrial Power & Hand Tools",
+      "sourceCount": 6743,
+      "sampledTarget": 38
+    },
+    {
+      "category_id": 134,
+      "category_name": "Sexual Wellness Products",
+      "sourceCount": 4547,
+      "sampledTarget": 25
+    },
+    {
+      "category_id": 46,
+      "category_name": "Perfumes & Fragrances",
+      "sourceCount": 882,
+      "sampledTarget": 5
+    },
+    {
+      "category_id": 167,
+      "category_name": "Household Cleaning Supplies",
+      "sourceCount": 8523,
+      "sampledTarget": 48
+    },
+    {
+      "category_id": 236,
+      "category_name": "Kids' Play Cars & Race Cars",
+      "sourceCount": 4689,
+      "sampledTarget": 26
+    },
+    {
+      "category_id": 178,
+      "category_name": "Pet Bird Supplies",
+      "sourceCount": 4396,
+      "sampledTarget": 25
+    },
+    {
+      "category_id": 151,
+      "category_name": "Janitorial & Sanitation Supplies",
+      "sourceCount": 5138,
+      "sampledTarget": 29
+    },
+    {
+      "category_id": 210,
+      "category_name": "Electrical Equipment",
+      "sourceCount": 7854,
+      "sampledTarget": 44
+    },
+    {
+      "category_id": 221,
+      "category_name": "Dolls & Accessories",
+      "sourceCount": 7521,
+      "sampledTarget": 42
+    },
+    {
+      "category_id": 27,
+      "category_name": "RV Parts & Accessories",
+      "sourceCount": 6476,
+      "sampledTarget": 36
+    },
+    {
+      "category_id": 238,
+      "category_name": "Kids' Play Buses",
+      "sourceCount": 274,
+      "sampledTarget": 2
+    },
+    {
+      "category_id": 135,
+      "category_name": "Health & Household",
+      "sourceCount": 724,
+      "sampledTarget": 4
+    },
+    {
+      "category_id": 40,
+      "category_name": "Baby Stationery",
+      "sourceCount": 1651,
+      "sampledTarget": 9
+    },
+    {
+      "category_id": 98,
+      "category_name": "Girls' School Uniforms",
+      "sourceCount": 302,
+      "sampledTarget": 2
+    },
+    {
+      "category_id": 99,
+      "category_name": "Travel Duffel Bags",
+      "sourceCount": 2401,
+      "sampledTarget": 13
+    },
+    {
+      "category_id": 149,
+      "category_name": "Electronic Components",
+      "sourceCount": 1759,
+      "sampledTarget": 10
+    },
+    {
+      "category_id": 248,
+      "category_name": "Mac Games & Accessories",
+      "sourceCount": 1477,
+      "sampledTarget": 8
+    },
+    {
+      "category_id": 163,
+      "category_name": "Bath Products",
+      "sourceCount": 8600,
+      "sampledTarget": 48
+    },
+    {
+      "category_id": 80,
+      "category_name": "Security & Surveillance Equipment",
+      "sourceCount": 6647,
+      "sampledTarget": 37
+    },
+    {
+      "category_id": 164,
+      "category_name": "Bedding",
+      "sourceCount": 8337,
+      "sampledTarget": 47
+    },
+    {
+      "category_id": 129,
+      "category_name": "Baby & Child Care Products",
+      "sourceCount": 3791,
+      "sampledTarget": 21
+    },
+    {
+      "category_id": 57,
+      "category_name": "Computers & Tablets",
+      "sourceCount": 8364,
+      "sampledTarget": 47
+    },
+    {
+      "category_id": 187,
+      "category_name": "Smart Home: Smart Locks and Entry",
+      "sourceCount": 295,
+      "sampledTarget": 2
+    },
+    {
+      "category_id": 189,
+      "category_name": "Smart Home: WiFi and Networking",
+      "sourceCount": 234,
+      "sampledTarget": 1
+    },
+    {
+      "category_id": 191,
+      "category_name": "Smart Home: Lighting",
+      "sourceCount": 141,
+      "sampledTarget": 1
+    },
+    {
+      "category_id": 73,
+      "category_name": "Portable Audio & Video",
+      "sourceCount": 8859,
+      "sampledTarget": 50
+    },
+    {
+      "category_id": 209,
+      "category_name": "Lighting & Ceiling Fans",
+      "sourceCount": 8497,
+      "sampledTarget": 48
+    },
+    {
+      "category_id": 263,
+      "category_name": "PC Games & Accessories",
+      "sourceCount": 5069,
+      "sampledTarget": 28
+    },
+    {
+      "category_id": 174,
+      "category_name": "Wall Art",
+      "sourceCount": 8527,
+      "sampledTarget": 48
+    },
+    {
+      "category_id": 264,
+      "category_name": "Baby Girls' Clothing & Shoes",
+      "sourceCount": 3266,
+      "sampledTarget": 18
+    },
+    {
+      "category_id": 78,
+      "category_name": "Vehicle Electronics",
+      "sourceCount": 6346,
+      "sampledTarget": 36
+    },
+    {
+      "category_id": 126,
+      "category_name": "Oral Care Products",
+      "sourceCount": 4028,
+      "sampledTarget": 23
+    },
+    {
+      "category_id": 8,
+      "category_name": "Needlework Supplies",
+      "sourceCount": 8355,
+      "sampledTarget": 47
+    },
+    {
+      "category_id": 223,
+      "category_name": "Games & Accessories",
+      "sourceCount": 7789,
+      "sampledTarget": 44
+    },
+    {
+      "category_id": 96,
+      "category_name": "Girls' Watches",
+      "sourceCount": 447,
+      "sampledTarget": 2
+    },
+    {
+      "category_id": 97,
+      "category_name": "Girls' Shoes",
+      "sourceCount": 10938,
+      "sampledTarget": 61
+    },
+    {
+      "category_id": 47,
+      "category_name": "Hair Care Products",
+      "sourceCount": 8669,
+      "sampledTarget": 49
+    },
+    {
+      "category_id": 160,
+      "category_name": "Packaging & Shipping Supplies",
+      "sourceCount": 6239,
+      "sampledTarget": 35
+    },
+    {
+      "category_id": 225,
+      "category_name": "Kids' Dress Up & Pretend Play",
+      "sourceCount": 7585,
+      "sampledTarget": 43
+    },
+    {
+      "category_id": 12,
+      "category_name": "Gift Wrapping Supplies",
+      "sourceCount": 8664,
+      "sampledTarget": 49
+    },
+    {
+      "category_id": 259,
+      "category_name": "Virtual Reality Hardware & Accessories",
+      "sourceCount": 5104,
+      "sampledTarget": 29
+    },
+    {
+      "category_id": 131,
+      "category_name": "Health Care Products",
+      "sourceCount": 3791,
+      "sampledTarget": 21
+    },
+    {
+      "category_id": 232,
+      "category_name": "Finger Toys",
+      "sourceCount": 1883,
+      "sampledTarget": 11
+    },
+    {
+      "category_id": 234,
+      "category_name": "Kids' Play Trains & Trams",
+      "sourceCount": 526,
+      "sampledTarget": 3
+    },
+    {
+      "category_id": 43,
+      "category_name": "Baby Boys' Clothing & Shoes",
+      "sourceCount": 8858,
+      "sampledTarget": 50
+    },
+    {
+      "category_id": 201,
+      "category_name": "Home Appliances",
+      "sourceCount": 7006,
+      "sampledTarget": 39
+    },
+    {
+      "category_id": 231,
+      "category_name": "Tricycles, Scooters & Wagons",
+      "sourceCount": 6890,
+      "sampledTarget": 39
+    },
+    {
+      "category_id": 154,
+      "category_name": "Fasteners",
+      "sourceCount": 7928,
+      "sampledTarget": 44
+    },
+    {
+      "category_id": 77,
+      "category_name": "Video Projectors",
+      "sourceCount": 837,
+      "sampledTarget": 5
+    },
+    {
+      "category_id": 127,
+      "category_name": "Vision Products",
+      "sourceCount": 4258,
+      "sampledTarget": 24
+    },
+    {
+      "category_id": 9,
+      "category_name": "Arts, Crafts & Sewing Storage",
+      "sourceCount": 7592,
+      "sampledTarget": 43
+    },
+    {
+      "category_id": 155,
+      "category_name": "Science Education Supplies",
+      "sourceCount": 3652,
+      "sampledTarget": 20
+    },
+    {
+      "category_id": 79,
+      "category_name": "Camera & Photo",
+      "sourceCount": 6169,
+      "sampledTarget": 35
+    },
+    {
+      "category_id": 173,
+      "category_name": "Home Storage & Organization",
+      "sourceCount": 15437,
+      "sampledTarget": 87
+    },
+    {
+      "category_id": 205,
+      "category_name": "Safety & Security",
+      "sourceCount": 7157,
+      "sampledTarget": 40
+    },
+    {
+      "category_id": 55,
+      "category_name": "Data Storage",
+      "sourceCount": 6120,
+      "sampledTarget": 34
+    },
+    {
+      "category_id": 144,
+      "category_name": "Material Handling Products",
+      "sourceCount": 7407,
+      "sampledTarget": 42
+    },
+    {
+      "category_id": 74,
+      "category_name": "eBook Readers & Accessories",
+      "sourceCount": 582,
+      "sampledTarget": 3
+    },
+    {
+      "category_id": 44,
+      "category_name": "Baby Strollers & Accessories",
+      "sourceCount": 2321,
+      "sampledTarget": 13
+    },
+    {
+      "category_id": 168,
+      "category_name": "Seasonal Décor",
+      "sourceCount": 8810,
+      "sampledTarget": 49
+    },
+    {
+      "category_id": 171,
+      "category_name": "Heating, Cooling & Air Quality",
+      "sourceCount": 7522,
+      "sampledTarget": 42
+    },
+    {
+      "category_id": 150,
+      "category_name": "Lab & Scientific Products",
+      "sourceCount": 7694,
+      "sampledTarget": 43
+    },
+    {
+      "category_id": 196,
+      "category_name": "Smart Home: Other Solutions",
+      "sourceCount": 140,
+      "sampledTarget": 1
+    },
+    {
+      "category_id": 197,
+      "category_name": "Smart Home - Heating & Cooling",
+      "sourceCount": 279,
+      "sampledTarget": 2
+    },
+    {
+      "category_id": 198,
+      "category_name": "Sports & Fitness",
+      "sourceCount": 6662,
+      "sampledTarget": 37
+    },
+    {
+      "category_id": 212,
+      "category_name": "Building Supplies",
+      "sourceCount": 7360,
+      "sampledTarget": 41
+    },
+    {
+      "category_id": 220,
+      "category_name": "Building Toys",
+      "sourceCount": 6398,
+      "sampledTarget": 36
+    },
+    {
+      "category_id": 254,
+      "category_name": "Xbox One Games, Consoles & Accessories",
+      "sourceCount": 3582,
+      "sampledTarget": 20
+    },
+    {
+      "category_id": 113,
+      "category_name": "Men's Watches",
+      "sourceCount": 12839,
+      "sampledTarget": 72
+    },
+    {
+      "category_id": 218,
+      "category_name": "Novelty Toys & Amusements",
+      "sourceCount": 7432,
+      "sampledTarget": 42
+    },
+    {
+      "category_id": 153,
+      "category_name": "Cutting Tools",
+      "sourceCount": 8146,
+      "sampledTarget": 46
+    },
+    {
+      "category_id": 65,
+      "category_name": "Laptop Accessories",
+      "sourceCount": 6763,
+      "sampledTarget": 38
+    },
+    {
+      "category_id": 162,
+      "category_name": "Industrial & Scientific",
+      "sourceCount": 4433,
+      "sampledTarget": 25
+    },
+    {
+      "category_id": 130,
+      "category_name": "Household Supplies",
+      "sourceCount": 1942,
+      "sampledTarget": 11
+    },
+    {
+      "category_id": 88,
+      "category_name": "Boys' Jewelry",
+      "sourceCount": 10868,
+      "sampledTarget": 61
+    },
+    {
+      "category_id": 148,
+      "category_name": "Filtration",
+      "sourceCount": 5704,
+      "sampledTarget": 32
+    },
+    {
+      "category_id": 184,
+      "category_name": "Small Animal Supplies",
+      "sourceCount": 6011,
+      "sampledTarget": 34
+    },
+    {
+      "category_id": 217,
+      "category_name": "Toy Figures & Playsets",
+      "sourceCount": 7973,
+      "sampledTarget": 45
+    },
+    {
+      "category_id": 243,
+      "category_name": "PlayStation 3 Games, Consoles & Accessories",
+      "sourceCount": 2700,
+      "sampledTarget": 15
+    },
+    {
+      "category_id": 262,
+      "category_name": "Xbox Series X & S Consoles, Games & Accessories",
+      "sourceCount": 5645,
+      "sampledTarget": 32
+    },
+    {
+      "category_id": 188,
+      "category_name": "Smart Home: Home Entertainment",
+      "sourceCount": 176,
+      "sampledTarget": 1
+    },
+    {
+      "category_id": 159,
+      "category_name": "Professional Dental Supplies",
+      "sourceCount": 6196,
+      "sampledTarget": 35
+    },
+    {
+      "category_id": 120,
+      "category_name": "Women's Accessories",
+      "sourceCount": 13921,
+      "sampledTarget": 78
+    },
+    {
+      "category_id": 15,
+      "category_name": "Heavy Duty & Commercial Vehicle Equipment",
+      "sourceCount": 5187,
+      "sampledTarget": 29
+    },
+    {
+      "category_id": 63,
+      "category_name": "Computer Components",
+      "sourceCount": 8443,
+      "sampledTarget": 47
+    },
+    {
+      "category_id": 38,
+      "category_name": "Baby Activity & Entertainment Products",
+      "sourceCount": 2010,
+      "sampledTarget": 11
+    },
+    {
+      "category_id": 10,
+      "category_name": "Painting, Drawing & Art Supplies",
+      "sourceCount": 9346,
+      "sampledTarget": 52
+    },
+    {
+      "category_id": 22,
+      "category_name": "Lights, Bulbs & Indicators",
+      "sourceCount": 9238,
+      "sampledTarget": 52
+    },
+    {
+      "category_id": 214,
+      "category_name": "Welding & Soldering",
+      "sourceCount": 7563,
+      "sampledTarget": 42
+    },
+    {
+      "category_id": 133,
+      "category_name": "Home Use Medical Supplies & Equipment",
+      "sourceCount": 2734,
+      "sampledTarget": 15
+    },
+    {
+      "category_id": 116,
+      "category_name": "Women's Clothing",
+      "sourceCount": 17393,
+      "sampledTarget": 98
+    },
+    {
+      "category_id": 3,
+      "category_name": "Knitting & Crochet Supplies",
+      "sourceCount": 8386,
+      "sampledTarget": 47
+    },
+    {
+      "category_id": 138,
+      "category_name": "Commercial Door Products",
+      "sourceCount": 8066,
+      "sampledTarget": 45
+    },
+    {
+      "category_id": 25,
+      "category_name": "Automotive Enthusiast Merchandise",
+      "sourceCount": 253,
+      "sampledTarget": 1
+    },
+    {
+      "category_id": 136,
+      "category_name": "Sports Nutrition Products",
+      "sourceCount": 4421,
+      "sampledTarget": 25
+    },
+    {
+      "category_id": 45,
+      "category_name": "Beauty & Personal Care",
+      "sourceCount": 2876,
+      "sampledTarget": 16
+    },
+    {
+      "category_id": 48,
+      "category_name": "Makeup",
+      "sourceCount": 8402,
+      "sampledTarget": 47
+    },
+    {
+      "category_id": 42,
+      "category_name": "Baby",
+      "sourceCount": 4825,
+      "sampledTarget": 27
+    },
+    {
+      "category_id": 224,
+      "category_name": "Learning & Education Toys",
+      "sourceCount": 3575,
+      "sampledTarget": 20
+    },
+    {
+      "category_id": 70,
+      "category_name": "GPS & Navigation",
+      "sourceCount": 6432,
+      "sampledTarget": 36
+    },
+    {
+      "category_id": 28,
+      "category_name": "Motorcycle & Powersports",
+      "sourceCount": 8487,
+      "sampledTarget": 48
+    },
+    {
+      "category_id": 83,
+      "category_name": "Video Game Consoles & Accessories",
+      "sourceCount": 770,
+      "sampledTarget": 4
+    },
+    {
+      "category_id": 265,
+      "category_name": "Boys' School Uniforms",
+      "sourceCount": 280,
+      "sampledTarget": 2
+    },
+    {
+      "category_id": 256,
+      "category_name": "Online Video Game Services",
+      "sourceCount": 94,
+      "sampledTarget": 1
+    },
+    {
+      "category_id": 261,
+      "category_name": "PlayStation 5 Consoles, Games & Accessories",
+      "sourceCount": 5136,
+      "sampledTarget": 29
+    },
+    {
+      "category_id": 192,
+      "category_name": "Smart Home: Plugs and Outlets",
+      "sourceCount": 226,
+      "sampledTarget": 1
+    },
+    {
+      "category_id": 193,
+      "category_name": "Smart Home: Vacuums and Mops",
+      "sourceCount": 78,
+      "sampledTarget": 0
+    },
+    {
+      "category_id": 199,
+      "category_name": "Outdoor Recreation",
+      "sourceCount": 3550,
+      "sampledTarget": 20
+    },
+    {
+      "category_id": 241,
+      "category_name": "Sony PSP Games, Consoles & Accessories",
+      "sourceCount": 1023,
+      "sampledTarget": 6
+    },
+    {
+      "category_id": 200,
+      "category_name": "Sports & Outdoors",
+      "sourceCount": 2654,
+      "sampledTarget": 15
+    },
+    {
+      "category_id": 208,
+      "category_name": "Kitchen & Bath Fixtures",
+      "sourceCount": 5796,
+      "sampledTarget": 32
+    },
+    {
+      "category_id": 125,
+      "category_name": "Gift Cards",
+      "sourceCount": 139,
+      "sampledTarget": 1
+    },
+    {
+      "category_id": 123,
+      "category_name": "Women's Jewelry",
+      "sourceCount": 17005,
+      "sampledTarget": 95
+    },
+    {
+      "category_id": 20,
+      "category_name": "Oils & Fluids",
+      "sourceCount": 1458,
+      "sampledTarget": 8
+    },
+    {
+      "category_id": 34,
+      "category_name": "Toilet Training Products",
+      "sourceCount": 1403,
+      "sampledTarget": 8
+    },
+    {
+      "category_id": 33,
+      "category_name": "Baby Safety Products",
+      "sourceCount": 4668,
+      "sampledTarget": 26
+    },
+    {
+      "category_id": 100,
+      "category_name": "Messenger Bags",
+      "sourceCount": 1244,
+      "sampledTarget": 7
+    },
+    {
+      "category_id": 87,
+      "category_name": "Boys' Accessories",
+      "sourceCount": 3660,
+      "sampledTarget": 21
+    },
+    {
+      "category_id": 102,
+      "category_name": "Garment Bags",
+      "sourceCount": 40,
+      "sampledTarget": 0
+    },
+    {
+      "category_id": 41,
+      "category_name": "Nursery Furniture, Bedding & Décor",
+      "sourceCount": 6331,
+      "sampledTarget": 35
+    },
+    {
+      "category_id": 139,
+      "category_name": "Power Transmission Products",
+      "sourceCount": 8777,
+      "sampledTarget": 49
+    },
+    {
+      "category_id": 170,
+      "category_name": "Kitchen & Dining",
+      "sourceCount": 4882,
+      "sampledTarget": 27
+    },
+    {
+      "category_id": 50,
+      "category_name": "Beauty Tools & Accessories",
+      "sourceCount": 6080,
+      "sampledTarget": 34
+    },
+    {
+      "category_id": 54,
+      "category_name": "Computer Servers",
+      "sourceCount": 286,
+      "sampledTarget": 2
+    },
+    {
+      "category_id": 147,
+      "category_name": "Hydraulics, Pneumatics & Plumbing",
+      "sourceCount": 8723,
+      "sampledTarget": 49
+    },
+    {
+      "category_id": 177,
+      "category_name": "Party Supplies",
+      "sourceCount": 6935,
+      "sampledTarget": 39
+    },
+    {
+      "category_id": 180,
+      "category_name": "Dog Supplies",
+      "sourceCount": 8325,
+      "sampledTarget": 47
+    },
+    {
+      "category_id": 152,
+      "category_name": "Occupational Health & Safety Products",
+      "sourceCount": 4265,
+      "sampledTarget": 24
+    },
+    {
+      "category_id": 75,
+      "category_name": "Cell Phones & Accessories",
+      "sourceCount": 3444,
+      "sampledTarget": 19
+    },
+    {
+      "category_id": 7,
+      "category_name": "Craft & Hobby Fabric",
+      "sourceCount": 7665,
+      "sampledTarget": 43
+    },
+    {
+      "category_id": 32,
+      "category_name": "Child Safety Car Seats & Accessories",
+      "sourceCount": 2845,
+      "sampledTarget": 16
+    },
+    {
+      "category_id": 132,
+      "category_name": "Diet & Sports Nutrition",
+      "sourceCount": 2291,
+      "sampledTarget": 13
+    },
+    {
+      "category_id": 143,
+      "category_name": "Industrial Adhesives, Sealants & Lubricants",
+      "sourceCount": 9085,
+      "sampledTarget": 51
+    },
+    {
+      "category_id": 172,
+      "category_name": "Kids' Home Store",
+      "sourceCount": 1870,
+      "sampledTarget": 10
+    },
+    {
+      "category_id": 179,
+      "category_name": "Cat Supplies",
+      "sourceCount": 8950,
+      "sampledTarget": 50
+    },
+    {
+      "category_id": 211,
+      "category_name": "Hardware",
+      "sourceCount": 4421,
+      "sampledTarget": 25
+    },
+    {
+      "category_id": 219,
+      "category_name": "Arts & Crafts Supplies",
+      "sourceCount": 8313,
+      "sampledTarget": 47
+    },
+    {
+      "category_id": 121,
+      "category_name": "Women's Watches",
+      "sourceCount": 6542,
+      "sampledTarget": 37
+    },
+    {
+      "category_id": 158,
+      "category_name": "Professional Medical Supplies",
+      "sourceCount": 3852,
+      "sampledTarget": 22
+    },
+    {
+      "category_id": 233,
+      "category_name": "Toy Vehicle Playsets",
+      "sourceCount": 2634,
+      "sampledTarget": 15
+    },
+    {
+      "category_id": 6,
+      "category_name": "Sewing Products",
+      "sourceCount": 8198,
+      "sampledTarget": 46
+    },
+    {
+      "category_id": 142,
+      "category_name": "Abrasive & Finishing Products",
+      "sourceCount": 8646,
+      "sampledTarget": 48
+    },
+    {
+      "category_id": 60,
+      "category_name": "Computer Networking",
+      "sourceCount": 8250,
+      "sampledTarget": 46
+    },
+    {
+      "category_id": 169,
+      "category_name": "Home Lighting & Ceiling Fans",
+      "sourceCount": 4073,
+      "sampledTarget": 23
+    },
+    {
+      "category_id": 176,
+      "category_name": "Ironing Products",
+      "sourceCount": 2353,
+      "sampledTarget": 13
+    },
+    {
+      "category_id": 161,
+      "category_name": "Retail Store Fixtures & Equipment",
+      "sourceCount": 4719,
+      "sampledTarget": 26
+    },
+    {
+      "category_id": 82,
+      "category_name": "Home Audio & Theater Products",
+      "sourceCount": 4826,
+      "sampledTarget": 27
+    },
+    {
+      "category_id": 90,
+      "category_name": "Boys' Shoes",
+      "sourceCount": 5975,
+      "sampledTarget": 33
+    },
+    {
+      "category_id": 215,
+      "category_name": "Tools & Home Improvement",
+      "sourceCount": 1719,
+      "sampledTarget": 10
+    },
+    {
+      "category_id": 181,
+      "category_name": "Fish & Aquatic Pets",
+      "sourceCount": 7093,
+      "sampledTarget": 40
+    },
+    {
+      "category_id": 203,
+      "category_name": "Pumps & Plumbing Equipment",
+      "sourceCount": 7794,
+      "sampledTarget": 44
+    },
+    {
+      "category_id": 242,
+      "category_name": "Nintendo DS Games, Consoles & Accessories",
+      "sourceCount": 2367,
+      "sampledTarget": 13
+    },
+    {
+      "category_id": 244,
+      "category_name": "Wii Games, Consoles & Accessories",
+      "sourceCount": 2292,
+      "sampledTarget": 13
+    },
+    {
+      "category_id": 207,
+      "category_name": "Power Tools & Hand Tools",
+      "sourceCount": 3852,
+      "sampledTarget": 22
+    },
+    {
+      "category_id": 194,
+      "category_name": "Smart Home Thermostats - Compatibility Checker",
+      "sourceCount": 22,
+      "sampledTarget": 0
+    },
+    {
+      "category_id": 122,
+      "category_name": "Women's Shoes",
+      "sourceCount": 15626,
+      "sampledTarget": 88
+    },
+    {
+      "category_id": 19,
+      "category_name": "Car Care",
+      "sourceCount": 8659,
+      "sampledTarget": 49
+    },
+    {
+      "category_id": 36,
+      "category_name": "Baby Travel Gear",
+      "sourceCount": 3007,
+      "sampledTarget": 17
+    },
+    {
+      "category_id": 39,
+      "category_name": "Baby Gifts",
+      "sourceCount": 4098,
+      "sampledTarget": 23
+    },
+    {
+      "category_id": 103,
+      "category_name": "Luggage Sets",
+      "sourceCount": 149,
+      "sampledTarget": 1
+    },
+    {
+      "category_id": 14,
+      "category_name": "Automotive Paint & Paint Supplies",
+      "sourceCount": 842,
+      "sampledTarget": 5
+    },
+    {
+      "category_id": 52,
+      "category_name": "Personal Care Products",
+      "sourceCount": 1301,
+      "sampledTarget": 7
+    },
+    {
+      "category_id": 29,
+      "category_name": "Baby Diapering Products",
+      "sourceCount": 2521,
+      "sampledTarget": 14
+    },
+    {
+      "category_id": 227,
+      "category_name": "Puzzles",
+      "sourceCount": 7181,
+      "sampledTarget": 40
+    },
+    {
+      "category_id": 249,
+      "category_name": "Nintendo 3DS & 2DS Consoles, Games & Accessories",
+      "sourceCount": 1192,
+      "sampledTarget": 7
+    },
+    {
+      "category_id": 250,
+      "category_name": "Legacy Systems",
+      "sourceCount": 1488,
+      "sampledTarget": 8
+    },
+    {
+      "category_id": 213,
+      "category_name": "Measuring & Layout",
+      "sourceCount": 5163,
+      "sampledTarget": 29
+    },
+    {
+      "category_id": 185,
+      "category_name": "Smart Home: New Smart Devices",
+      "sourceCount": 42,
+      "sampledTarget": 0
+    },
+    {
+      "category_id": 229,
+      "category_name": "Stuffed Animals & Plush Toys",
+      "sourceCount": 5398,
+      "sampledTarget": 30
+    },
+    {
+      "category_id": 235,
+      "category_name": "Kids' Play Trucks",
+      "sourceCount": 2438,
+      "sampledTarget": 14
+    },
+    {
+      "category_id": 11,
+      "category_name": "Craft Supplies & Materials",
+      "sourceCount": 7778,
+      "sampledTarget": 44
+    },
+    {
+      "category_id": 18,
+      "category_name": "Automotive Performance Parts & Accessories",
+      "sourceCount": 9418,
+      "sampledTarget": 53
+    },
+    {
+      "category_id": 21,
+      "category_name": "Automotive Replacement Parts",
+      "sourceCount": 8289,
+      "sampledTarget": 46
+    },
+    {
+      "category_id": 226,
+      "category_name": "Puppets & Puppet Theaters",
+      "sourceCount": 1655,
+      "sampledTarget": 9
+    },
+    {
+      "category_id": 64,
+      "category_name": "Tablet Accessories",
+      "sourceCount": 8466,
+      "sampledTarget": 47
+    },
+    {
+      "category_id": 94,
+      "category_name": "Girls' Accessories",
+      "sourceCount": 3842,
+      "sampledTarget": 22
+    },
+    {
+      "category_id": 109,
+      "category_name": "Laptop Bags",
+      "sourceCount": 5618,
+      "sampledTarget": 31
+    },
+    {
+      "category_id": 107,
+      "category_name": "Backpacks",
+      "sourceCount": 9580,
+      "sampledTarget": 54
+    },
+    {
+      "category_id": 5,
+      "category_name": "Scrapbooking & Stamping Supplies",
+      "sourceCount": 5931,
+      "sampledTarget": 33
+    },
+    {
+      "category_id": 156,
+      "category_name": "Food Service Equipment & Supplies",
+      "sourceCount": 5921,
+      "sampledTarget": 33
+    },
+    {
+      "category_id": 145,
+      "category_name": "Test, Measure & Inspect",
+      "sourceCount": 4370,
+      "sampledTarget": 24
+    },
+    {
+      "category_id": 101,
+      "category_name": "Travel Tote Bags",
+      "sourceCount": 1716,
+      "sampledTarget": 10
+    },
+    {
+      "category_id": 23,
+      "category_name": "Automotive Interior Accessories",
+      "sourceCount": 8444,
+      "sampledTarget": 47
+    },
+    {
+      "category_id": 204,
+      "category_name": "Paint, Wall Treatments & Supplies",
+      "sourceCount": 5330,
+      "sampledTarget": 30
+    },
+    {
+      "category_id": 106,
+      "category_name": "Rain Umbrellas",
+      "sourceCount": 1774,
+      "sampledTarget": 10
+    },
+    {
+      "category_id": 105,
+      "category_name": "Travel Accessories",
+      "sourceCount": 16160,
+      "sampledTarget": 91
+    },
+    {
+      "category_id": 137,
+      "category_name": "Stationery & Gift Wrapping Supplies",
+      "sourceCount": 456,
+      "sampledTarget": 3
+    },
+    {
+      "category_id": 26,
+      "category_name": "Car Electronics & Accessories",
+      "sourceCount": 1931,
+      "sampledTarget": 11
+    }
+  ]
+}

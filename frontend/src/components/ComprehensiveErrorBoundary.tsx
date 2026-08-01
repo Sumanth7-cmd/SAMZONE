@@ -98,15 +98,22 @@ class ComprehensiveErrorBoundary extends Component<
     }
 
     private handleRetry = () => {
-        this.setState(prevState => ({
-            ...prevState,
-            retryCount: prevState.retryCount + 1
-        }));
-        
-        // Trigger a page reload after 3 retries
-        if (this.state.retryCount >= 2) {
+        const nextRetryCount = this.state.retryCount + 1;
+
+        // A retry must actually remount children; previously this only changed
+        // a counter while the fallback remained on screen.
+        if (nextRetryCount >= 3) {
             window.location.reload();
+            return;
         }
+
+        this.setState({
+            hasError: false,
+            error: null,
+            errorInfo: null,
+            errorId: '',
+            retryCount: nextRetryCount,
+        });
     }
 
     

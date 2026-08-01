@@ -69,3 +69,5 @@ ENV/
 # Package manager
 package-lock.json
 yarn.lock
+*.csv
+data/

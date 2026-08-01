@@ -2,15 +2,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import PremiumNavbar from './components/PremiumNavbar';
-import CleanProductGrid from './components/CleanProductGrid';
 import PremiumFooter from './components/PremiumFooter';
-import HumanlikeAIChatbot from './components/HumanlikeAIChatbot';
-import WorkingImageUpload from './components/WorkingImageUpload';
-import FixedWebcamTryOn from './components/FixedWebcamTryOn';
-import SimpleTryOnInteraction from './components/SimpleTryOnInteraction';
-import SkinToneAnalysis from './components/SkinToneAnalysis';
 import ComprehensiveErrorBoundary from './components/ComprehensiveErrorBoundary';
-import SimpleLogin from './components/SimpleLogin';
 import CompareFloatingButton from './components/CompareFloatingButton';
 import { CompareProvider } from './context/CompareContext';
 import { Loader, Brain, ShoppingBag, Camera, Shirt } from 'lucide-react';
@@ -25,6 +18,14 @@ const Admin = lazy(() => import('./pages/Admin'));
 const VisualSearch = lazy(() => import('./pages/VisualSearch'));
 const Stylist = lazy(() => import('./pages/Stylist'));
 const StyleDna = lazy(() => import('./pages/StyleDna'));
+const CleanProductGrid = lazy(() => import('./components/CleanProductGrid'));
+const FixedWebcamTryOn = lazy(() => import('./components/FixedWebcamTryOn'));
+const SkinToneAnalysis = lazy(() => import('./components/SkinToneAnalysis'));
+const SimpleLogin = lazy(() => import('./components/SimpleLogin'));
+// The assistant is present on every page, but its implementation and catalog
+// helpers do not need to block first paint. It is fetched immediately after
+// the application shell commits and retains the same always-available UI.
+const HumanlikeAIChatbot = lazy(() => import('./components/HumanlikeAIChatbot'));
 
 // Loading component for lazy loaded routes
 const PageLoader = () => (
@@ -55,9 +56,6 @@ function App() {
                                     {/* Shop with Clean Product Grid */}
                                     <Route path="/shop" element={<CleanProductGrid />} />
 
-                                    {/* Working Image Upload */}
-                                    <Route path="/upload" element={<WorkingImageUpload />} />
-
                                     {/* Skin Tone Analysis */}
                                     <Route path="/skin-tone" element={<SkinToneAnalysis />} />
 
@@ -69,9 +67,6 @@ function App() {
 
                                     {/* Enhanced Try-On Studio */}
                                     <Route path="/try-on" element={<FixedWebcamTryOn />} />
-
-                                    {/* Simple Try-On Interaction */}
-                                    <Route path="/try-on-interaction" element={<SimpleTryOnInteraction />} />
 
                                     {/* Visual Search */}
                                     <Route path="/visual-search" element={<VisualSearch />} />
@@ -132,7 +127,9 @@ function App() {
                     <PremiumFooter />
 
                     {/* Humanlike SAM AI Assistant - Always Available */}
-                    <HumanlikeAIChatbot />
+                    <Suspense fallback={null}>
+                        <HumanlikeAIChatbot />
+                    </Suspense>
 
                     {/* Floating "Compare (N)" button */}
                     <CompareFloatingButton />

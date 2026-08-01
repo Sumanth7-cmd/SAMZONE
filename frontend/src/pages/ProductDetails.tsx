@@ -2,11 +2,71 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { productApi, stylistApi } from '../services/api';
 import type { Product, StylistPick } from '../services/api';
-import { ArrowLeft, Star, Heart, Share2, ShoppingCart, Sparkles, Eye } from 'lucide-react';
+import { ArrowLeft, Star, Heart, Share2, ShoppingCart, Sparkles, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
 import { toggleWishlist, isWishlisted } from '../utils/wishlist';
 import { recordViewedProduct } from '../services/recommendationService';
+
+function parseSpecifications(raw?: any): { key: string; value: string }[] {
+    if (!raw) return [];
+    if (typeof raw === 'object' && raw !== null) {
+        if (Array.isArray(raw)) {
+            return raw.map((item: any) => ({
+                key: item.key || item.Key || item.name || 'Feature',
+                value: item.value || item.Value || String(item),
+            }));
+        }
+        if (Array.isArray(raw.product_specification)) {
+            return raw.product_specification.map((item: any) => ({
+                key: item.key || item.Key || 'Feature',
+                value: item.value || item.Value || String(item),
+            }));
+        }
+        return Object.entries(raw).map(([k, v]) => ({ key: k, value: String(v) }));
+    }
+    if (typeof raw !== 'string') return [];
+    try {
+        let cleaned = raw.trim();
+        if (cleaned.includes('=>')) {
+            cleaned = cleaned.replace(/\\"/g, '"');
+            const pairs: { key: string; value: string }[] = [];
+            const keyValRegex = /"key"\s*=>\s*"([^"]+)"\s*,\s*"value"\s*=>\s*"([^"]+)"/gi;
+            let m;
+            while ((m = keyValRegex.exec(cleaned)) !== null) {
+                pairs.push({ key: m[1], value: m[2] });
+            }
+            if (pairs.length > 0) return pairs;
+        }
+        const parsed = JSON.parse(cleaned);
+        if (Array.isArray(parsed)) {
+            return parsed.map((item: any) => ({
+                key: item.key || item.Key || item.name || 'Feature',
+                value: item.value || item.Value || String(item),
+            }));
+        }
+        if (typeof parsed === 'object' && parsed !== null) {
+            if (Array.isArray(parsed.product_specification)) {
+                return parsed.product_specification.map((item: any) => ({
+                    key: item.key || item.Key || 'Feature',
+                    value: item.value || item.Value || String(item),
+                }));
+            }
+            return Object.entries(parsed).map(([k, v]) => ({ key: k, value: String(v) }));
+        }
+    } catch {}
+
+    return raw
+        .split(/\n|,|;/)
+        .map((line) => {
+            const parts = line.split(':');
+            if (parts.length >= 2) {
+                return { key: parts[0].trim(), value: parts.slice(1).join(':').trim() };
+            }
+            return null;
+        })
+        .filter((item): item is { key: string; value: string } => item !== null && item.key.length > 0);
+}
 
 const ProductDetails: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -46,9 +106,9 @@ const ProductDetails: React.FC = () => {
         fetchProduct();
     }, [id]);
 
-    const discountedPrice = product?.discount
-        ? product.price * (1 - product.discount / 100)
-        : product?.price;
+    const currentPrice = product?.price ?? 0;
+    const originalPrice = product?.originalPrice ?? currentPrice;
+    const hasDiscount = (product?.originalPrice ?? 0) > 0 && currentPrice < originalPrice;
 
     const handleCompleteLook = async () => {
         if (!product) return;
@@ -119,41 +179,71 @@ const ProductDetails: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-8">
                         {/* Product Images */}
                         <div>
-                            <div className="aspect-square mb-4">
-                                <img
-                                    src={product.images?.[selectedImage] || getProductImage(product)}
-                                    alt={product.name}
-                                    className="w-full h-full object-cover object-center rounded-lg"
-                                    loading="lazy"
-                                    onError={(e) => {
-                                        e.currentTarget.src = PLACEHOLDER;
-                                        e.currentTarget.onerror = null;
-                                    }}
-                                />
-                            </div>
-                            
-                            {/* Thumbnail Gallery */}
-                            {product.images && product.images.length > 1 && (
-                                <div className="grid grid-cols-4 gap-2">
-                                    {product.images.map((image, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => setSelectedImage(index)}
-                                            className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                                                selectedImage === index 
-                                                    ? 'border-indigo-600' 
-                                                    : 'border-gray-200 hover:border-gray-300'
-                                            }`}
-                                        >
+                            {(() => {
+                                const galleryImages = Array.from(new Set(product.images || [])).filter(Boolean);
+                                const mainSrc = galleryImages[selectedImage] || getProductImage(product);
+                                return (
+                                    <>
+                                        <div className="relative aspect-square mb-4 group rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
                                             <img
-                                                src={image}
-                                                alt={`${product.name} ${index + 1}`}
-                                                className="w-full h-full object-cover object-center"
+                                                src={mainSrc}
+                                                alt={product.name}
+                                                className="w-full h-full object-cover object-center rounded-lg"
+                                                loading="lazy"
+                                                onError={(e) => {
+                                                    e.currentTarget.src = PLACEHOLDER;
+                                                    e.currentTarget.onerror = null;
+                                                }}
                                             />
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                                            {galleryImages.length > 1 && (
+                                                <>
+                                                    <button
+                                                        onClick={() => setSelectedImage((prev) => (prev > 0 ? prev - 1 : galleryImages.length - 1))}
+                                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-2 rounded-full transition-opacity opacity-80 hover:opacity-100"
+                                                        aria-label="Previous image"
+                                                    >
+                                                        <ChevronLeft className="w-5 h-5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSelectedImage((prev) => (prev < galleryImages.length - 1 ? prev + 1 : 0))}
+                                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-2 rounded-full transition-opacity opacity-80 hover:opacity-100"
+                                                        aria-label="Next image"
+                                                    >
+                                                        <ChevronRight className="w-5 h-5" />
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {/* Thumbnail Gallery */}
+                                        {galleryImages.length > 1 && (
+                                            <div className="grid grid-cols-4 gap-2">
+                                                {galleryImages.map((image, index) => (
+                                                    <button
+                                                        key={index}
+                                                        onClick={() => setSelectedImage(index)}
+                                                        className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                                                            selectedImage === index
+                                                                ? 'border-indigo-600 ring-2 ring-indigo-200'
+                                                                : 'border-gray-200 hover:border-gray-300'
+                                                        }`}
+                                                    >
+                                                        <img
+                                                            src={image}
+                                                            alt={`${product.name} ${index + 1}`}
+                                                            className="w-full h-full object-cover object-center"
+                                                            onError={(e) => {
+                                                                e.currentTarget.src = PLACEHOLDER;
+                                                                e.currentTarget.onerror = null;
+                                                            }}
+                                                        />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </div>
 
                         {/* Product Details */}
@@ -174,7 +264,7 @@ const ProductDetails: React.FC = () => {
                                     </div>
                                 </div>
                                 <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
-                                <p className="text-lg text-gray-600 mb-4">{product.brand}</p>
+                                <p className="text-lg text-gray-600 mb-4">{product.brand || 'Premium Brand'}</p>
                                 
                                 {/* Rating */}
                                 {(product.rating ?? 0) > 0 && (
@@ -198,15 +288,15 @@ const ProductDetails: React.FC = () => {
                                 {/* Price */}
                                 <div className="flex items-center gap-3 mb-6">
                                     <span className="text-4xl font-bold text-gray-900">
-                                        ₹{discountedPrice?.toLocaleString()}
+                                        ₹{currentPrice.toLocaleString('en-IN')}
                                     </span>
-                                    {(product.discount ?? 0) > 0 && (
+                                    {hasDiscount && (
                                         <>
                                             <span className="text-2xl text-gray-500 line-through">
-                                                ₹{product.price.toLocaleString()}
+                                                ₹{originalPrice.toLocaleString('en-IN')}
                                             </span>
                                             <span className="bg-red-500 text-white px-2 py-1 rounded-md text-sm font-bold">
-                                                -{product.discount.toFixed(0)}%
+                                                -{Math.round(((originalPrice - currentPrice) / originalPrice) * 100)}%
                                             </span>
                                         </>
                                     )}
@@ -345,20 +435,29 @@ const ProductDetails: React.FC = () => {
                             {/* Description */}
                             <div className="mb-6">
                                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-                                <p className="text-gray-600 leading-relaxed">{product.description}</p>
+                                <p className="text-gray-600 leading-relaxed">{product.description || 'A refined pick curated for modern wardrobes and everyday comfort.'}</p>
                             </div>
 
                             {/* Specifications */}
-                            {product.specifications && (
-                                <div className="mb-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Specifications</h3>
-                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                        <pre className="text-sm text-gray-600 whitespace-pre-wrap font-sans">
-                                            {product.specifications}
-                                        </pre>
+                            {(() => {
+                                const parsedSpecs = parseSpecifications(product.specifications);
+                                if (parsedSpecs.length === 0) return null;
+                                return (
+                                    <div className="mb-6">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Specifications</h3>
+                                        <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+                                            <div className="divide-y divide-gray-200">
+                                                {parsedSpecs.map((spec, idx) => (
+                                                    <div key={idx} className="flex py-3 px-4 text-sm">
+                                                        <span className="w-1/3 font-semibold text-gray-700">{spec.key}</span>
+                                                        <span className="w-2/3 text-gray-600">{spec.value}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             <div className="flex gap-4 mt-4">
                                 <button
@@ -367,7 +466,7 @@ const ProductDetails: React.FC = () => {
                                             {
                                                 id: product.id,
                                                 name: product.name,
-                                                price: discountedPrice ?? product.price,
+                                                price: currentPrice,
                                                 image: getProductImage(product),
                                                 size: selectedSize || product.sizes?.[0],
                                                 color: selectedColor || product.colors?.[0],
@@ -393,7 +492,7 @@ const ProductDetails: React.FC = () => {
                                             {
                                                 id: product.id,
                                                 name: product.name,
-                                                price: discountedPrice ?? product.price,
+                                                price: currentPrice,
                                                 image: getProductImage(product),
                                                 size: selectedSize || product.sizes?.[0],
                                                 color: selectedColor || product.colors?.[0],

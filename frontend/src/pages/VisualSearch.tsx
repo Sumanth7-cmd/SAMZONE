@@ -1,12 +1,14 @@
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Upload, ShoppingCart, Eye, Loader } from 'lucide-react';
-import { visualSearchApi } from '../services/api';
+import { isAdultFashionApparel, productApi, visualSearchApi } from '../services/api';
 import type { Product, VisualSearchDetection } from '../services/api';
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
+import { analyzeImageFeatures, rankProductsForVisualContext, trackProductInteraction } from '../services/aiShoppingFeatures';
 
 const VisualSearch: React.FC = () => {
+    const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
     const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -17,12 +19,21 @@ const VisualSearch: React.FC = () => {
     const [products, setProducts] = useState<Product[]>([]);
 
     const handleFile = (file: File | undefined) => {
-        if (!file || !file.type.startsWith('image/')) return;
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            setError('Please select a valid image file.');
+            return;
+        }
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
+            setError('Please choose an image smaller than 10 MB.');
+            return;
+        }
         setError(null);
         setDetected(null);
         setProducts([]);
         const reader = new FileReader();
         reader.onload = (e) => setPreview(e.target?.result as string);
+        reader.onerror = () => setError("We couldn't read that image. Please try another file.");
         reader.readAsDataURL(file);
     };
 
@@ -31,9 +42,31 @@ const VisualSearch: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const result = await visualSearchApi.search(preview);
-            setDetected(result.detected);
-            setProducts(result.products);
+            const analysis = await analyzeImageFeatures(preview);
+            const [result, allProducts] = await Promise.all([
+                visualSearchApi.search(preview, analysis),
+                productApi.getAllProducts(),
+            ]);
+
+            const isAccessorySearch = analysis.category === 'accessories' || analysis.category === 'bag';
+            const candidateMap = new Map<number, Product>();
+            [...result.products, ...allProducts].forEach(p => {
+                if (isAccessorySearch || isAdultFashionApparel(p)) {
+                    candidateMap.set(p.id, p);
+                }
+            });
+            const combinedCandidates = Array.from(candidateMap.values());
+            const ranked = rankProductsForVisualContext(combinedCandidates, analysis);
+            const rankedProducts = ranked.map(({ product }) => product);
+
+            const productsToShow = rankedProducts.length > 0 ? rankedProducts : result.products;
+            setDetected(result.detected || {
+                category: analysis.category,
+                type: analysis.style,
+                color: analysis.dominantColor,
+                keywords: analysis.keywords,
+            });
+            setProducts(productsToShow.slice(0, 8));
         } catch {
             setError("Couldn't analyze this photo right now. Please try again.");
         } finally {
@@ -42,6 +75,7 @@ const VisualSearch: React.FC = () => {
     };
 
     const handleAddToCart = (product: Product) => {
+        trackProductInteraction(product, 'add');
         addToCart({
             id: product.id,
             name: product.name,

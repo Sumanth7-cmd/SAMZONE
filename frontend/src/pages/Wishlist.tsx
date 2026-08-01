@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, ArrowLeft } from 'lucide-react';
+import { Heart, ArrowLeft, ShoppingBag } from 'lucide-react';
 import { productApi, type Product } from '../services/api';
-import { getWishlist, toggleWishlist, WISHLIST_EVENT } from '../utils/wishlist';
+import { addToCart } from '../utils/cart';
+import { getWishlist, moveWishlistItemToCart, toggleWishlist, WISHLIST_EVENT } from '../utils/wishlist';
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 
 const Wishlist: React.FC = () => {
@@ -92,13 +93,33 @@ const Wishlist: React.FC = () => {
                                 <p className="text-lg font-bold text-gray-900 mb-3">
                                     ₹{product.price.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                                 </p>
-                                <button
-                                    onClick={() => toggleWishlist(product.id)}
-                                    className="mt-auto w-full flex items-center justify-center gap-2 border border-red-500 text-red-500 py-2 rounded-lg hover:bg-red-50 transition-colors"
-                                >
-                                    <Heart className="w-4 h-4 fill-current" />
-                                    Remove
-                                </button>
+                                <div className="mt-auto grid gap-2">
+                                    <button
+                                        onClick={() => {
+                                            addToCart({
+                                                id: product.id,
+                                                name: product.name,
+                                                price: product.price,
+                                                image: getProductImage(product),
+                                                size: product.sizes?.[0],
+                                                color: product.colors?.[0],
+                                                stock: product.stock,
+                                            });
+                                            moveWishlistItemToCart(product.id);
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                                    >
+                                        <ShoppingBag className="w-4 h-4" />
+                                        Move to Cart
+                                    </button>
+                                    <button
+                                        onClick={() => toggleWishlist(product.id)}
+                                        className="w-full flex items-center justify-center gap-2 border border-red-500 text-red-500 py-2 rounded-lg hover:bg-red-50 transition-colors"
+                                    >
+                                        <Heart className="w-4 h-4 fill-current" />
+                                        Remove
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}

@@ -18,9 +18,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p WHERE " +
            "(:category IS NULL OR p.category = CAST(:category AS string)) AND " +
            "(:brand IS NULL OR LOWER(p.brand) = LOWER(CAST(:brand AS string))) AND " +
-           "(:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
+           "(:search IS NULL OR (LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
            "OR LOWER(p.description) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) " +
-           "OR LOWER(p.brand) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))) AND " +
+           "OR LOWER(p.brand) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))) AND " +
            "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
            "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
            "(:minRating IS NULL OR p.rating >= :minRating)")
@@ -43,6 +43,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT DISTINCT p.category FROM Product p")
     List<String> findAllCategories();
+
+    @Query("SELECT p.externalId FROM Product p WHERE p.externalId IS NOT NULL")
+    List<String> findAllExternalIds();
 
     @Query("SELECT p.category, COUNT(p) FROM Product p GROUP BY p.category")
     List<Object[]> countProductsByCategory();

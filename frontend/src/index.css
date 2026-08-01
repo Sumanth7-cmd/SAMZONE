@@ -5,15 +5,129 @@
 }
 
 :root {
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
-    --glass: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.2);
+    color-scheme: dark;
+    --surface: #ffffff;
+    --surface-muted: #f8fafc;
+    --surface-alt: #eef2ff;
+    --border: rgba(148, 163, 184, 0.24);
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+    --primary: #6366f1;
+    --primary-strong: #4f46e5;
+    --primary-soft: #eef2ff;
+    --accent: #9333ea;
+    --success: #16a34a;
+    --warning: #f59e0b;
+    --danger: #dc2626;
+    --shadow-soft: 0 24px 80px rgba(99, 102, 241, 0.08);
+    --radius: 1.5rem;
+}
+
+html {
+    scroll-behavior: smooth;
+    background: radial-gradient(circle at top, rgba(99, 102, 241, 0.08), transparent 35%),
+                radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.07), transparent 25%);
 }
 
 body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply min-h-screen bg-slate-50 text-slate-900 antialiased;
     font-family: var(--font-sans);
+    background-color: #f8fafc;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+.hero-panel {
+    @apply rounded-[2rem] bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white shadow-[var(--shadow-soft)] p-10 overflow-hidden;
+}
+
+.card-surface {
+    @apply bg-white border border-slate-200 rounded-[1.5rem] shadow-[var(--shadow-soft)] overflow-hidden;
+}
+
+.panel {
+    @apply rounded-[1.5rem] bg-white border border-slate-200 shadow-sm p-6;
+}
+
+.panel-strong {
+    @apply rounded-[1.5rem] bg-slate-950 text-white shadow-[var(--shadow-soft)] p-6;
+}
+
+.input-primary {
+    @apply w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition duration-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200;
+}
+
+.btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-indigo-600 text-white px-5 py-3 text-sm font-semibold shadow-lg shadow-indigo-500/10 transition duration-200 hover:bg-indigo-700;
+}
+
+.btn-secondary {
+    @apply inline-flex items-center justify-center rounded-full bg-white text-slate-900 border border-slate-200 px-5 py-3 text-sm font-semibold shadow-sm transition duration-200 hover:bg-slate-50;
+}
+
+.btn-tertiary {
+    @apply inline-flex items-center justify-center rounded-full bg-slate-100 text-slate-700 px-4 py-2 text-sm font-medium transition duration-200 hover:bg-slate-200;
+}
+
+.badge-pill {
+    @apply inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700;
+}
+
+.section-title {
+    @apply text-3xl font-bold text-slate-900;
+}
+
+.section-subtitle {
+    @apply text-lg text-slate-600;
+}
+
+.toast {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 50;
+    border-radius: 1.25rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+    color: #fff;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.toast-success {
+    background: linear-gradient(135deg, #22c55e, #15803d);
+}
+
+.toast-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.toast-error {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.35s ease-out both;
 }
 
 /* Premium Component Styles */

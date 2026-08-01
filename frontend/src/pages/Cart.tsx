@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CART_EVENT, type CartItem } from '../utils/cart';
+import { CART_EVENT, clearCart, getCart, getCartSummary, removeFromCart, updateCartItem, type CartItem } from '../utils/cart';
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 
 const Cart: React.FC = () => {
@@ -11,66 +11,50 @@ const Cart: React.FC = () => {
 
     useEffect(() => {
         const loadCart = () => {
-            const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-            setCartItems(cart);
+            setCartItems(getCart());
         };
 
         loadCart();
 
-        // Listen for storage changes from other tabs
+        const handleCartUpdate = () => loadCart();
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === 'cart') {
                 loadCart();
             }
         };
 
+        window.addEventListener(CART_EVENT, handleCartUpdate);
         window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener(CART_EVENT, handleCartUpdate);
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, []);
 
-    const updateQuantity = (id: number, delta: number) => {
-        setCartItems((items) => {
-            const updatedItems = items.map((item) => {
-                if (item.id === id) {
-                    const newQuantity = Math.max(1, Math.min(item.stock || 999, item.quantity + delta));
-                    return { ...item, quantity: newQuantity };
-                }
-                return item;
-            });
-
-            localStorage.setItem('cart', JSON.stringify(updatedItems));
-            window.dispatchEvent(new Event(CART_EVENT));
-            return updatedItems;
-        });
+    const updateQuantity = (item: CartItem, delta: number) => {
+        const nextQuantity = item.quantity + delta;
+        const updatedItems = updateCartItem(item.id, item.size, item.color, nextQuantity);
+        setCartItems(updatedItems);
     };
 
-    const removeItem = (id: number) => {
-        setCartItems((items) => {
-            const updatedItems = items.filter((item) => item.id !== id);
-            localStorage.setItem('cart', JSON.stringify(updatedItems));
-            window.dispatchEvent(new Event(CART_EVENT));
-            return updatedItems;
-        });
+    const removeItem = (item: CartItem) => {
+        const updatedItems = removeFromCart(item.id, item.size, item.color);
+        setCartItems(updatedItems);
     };
 
-    const clearCart = () => {
+    const clearCartItems = () => {
+        clearCart();
         setCartItems([]);
-        localStorage.setItem('cart', JSON.stringify([]));
-        window.dispatchEvent(new Event(CART_EVENT));
     };
 
     const checkout = () => {
-        clearCart();
+        clearCartItems();
         setCheckedOut(true);
     };
 
-    const subtotal = cartItems.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-    );
-    
-    const shipping = subtotal > 1000 ? 0 : 50; // Free shipping over ₹1000
-    const total = subtotal + shipping;
+    const { subtotal, shipping, total } = getCartSummary();
+    const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
     if (cartItems.length === 0) {
         return (
@@ -147,9 +131,9 @@ const Cart: React.FC = () => {
                     transition={{ duration: 0.4 }}
                     className="flex items-center justify-between mb-8"
                 >
-                    <h1 className="text-3xl font-bold text-gray-900">Shopping Cart ({cartItems.length} items)</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">Shopping Cart ({itemCount} items)</h1>
                     <motion.button
-                        onClick={clearCart}
+                        onClick={clearCartItems}
                         className="text-red-600 hover:text-red-700 font-medium text-sm"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -223,7 +207,7 @@ const Cart: React.FC = () => {
                                             <div className="flex items-center space-x-4">
                                                 <div className="flex items-center border rounded-md">
                                                     <motion.button
-                                                        onClick={() => updateQuantity(item.id, -1)}
+                                                        onClick={() => updateQuantity(item, -1)}
                                                         className="p-2 hover:bg-gray-100 disabled:opacity-50"
                                                         disabled={item.quantity <= 1}
                                                         whileHover={{ scale: 1.1 }}
@@ -235,7 +219,7 @@ const Cart: React.FC = () => {
                                                         {item.quantity}
                                                     </span>
                                                     <motion.button
-                                                        onClick={() => updateQuantity(item.id, 1)}
+                                                        onClick={() => updateQuantity(item, 1)}
                                                         className="p-2 hover:bg-gray-100 disabled:opacity-50"
                                                         disabled={item.stock !== undefined && item.quantity >= item.stock}
                                                         whileHover={{ scale: 1.1 }}
@@ -255,7 +239,7 @@ const Cart: React.FC = () => {
                                                     </p>
                                                 </motion.div>
                                                 <motion.button
-                                                    onClick={() => removeItem(item.id)}
+                                                    onClick={() => removeItem(item)}
                                                     className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                                     whileHover={{ scale: 1.1 }}
                                                     whileTap={{ scale: 0.9 }}
@@ -299,7 +283,7 @@ const Cart: React.FC = () => {
                             </h2>
                             <div className="space-y-3">
                                 <div className="flex justify-between">
-                                    <span className="text-gray-600">Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
+                                    <span className="text-gray-600">Subtotal ({itemCount} items)</span>
                                     <span className="font-medium">₹{subtotal.toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between">
@@ -307,6 +291,10 @@ const Cart: React.FC = () => {
                                     <span className="font-medium">
                                         {shipping === 0 ? 'FREE' : `₹${shipping.toLocaleString()}`}
                                     </span>
+                                </div>
+                                <div className="rounded-lg bg-purple-50 p-3 text-sm text-purple-700 flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4" />
+                                    Estimated delivery: 2–4 business days
                                 </div>
                                 {shipping > 0 && (
                                     <motion.p 

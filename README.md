@@ -1,273 +1,103 @@
-# 🛍️ SAMZONE - AI-Powered E-Commerce Platform
+# SAMZONE
 
-## 🚀 Live Demo
-👉 **https://samzone.vercel.app** *(Deploying soon...)*
+SAMZONE is a React and TypeScript shopping experience with a Supabase-backed
+catalog, local cart/wishlist/compare state, visual search, styling tools, and
+browser-based virtual try-on overlays.
 
-## 🎯 Project Overview
+> Status: portfolio/demo project. It is not yet approved for production use
+> because real authentication, verified Supabase RLS policies, and a clean lint
+> baseline are still outstanding.
 
-SAMZONE is a cutting-edge AI-powered e-commerce platform that combines the best features of Amazon, Myntra, and ChatGPT. Built with React, TypeScript, and advanced AI capabilities, it delivers a revolutionary shopping experience with virtual try-on, intelligent recommendations, and humanlike AI assistance.
+## Architecture
 
-### 🎯 Core Features
-- **Virtual Try-On Studio**: Real-time pose tracking with TensorFlow MoveNet
-- **AI Shopping Assistant (S.A.M.)**: OpenAI-powered conversational shopping helper
-- **Smart Product Catalog**: 800+ products with advanced filtering
-- **Skin Tone Analysis**: Personalized color recommendations
-- **Body Size Estimation**: Dynamic size recommendations
-- **Outfit Scoring**: AI-powered compatibility scoring (0-10)
-- **Amazon-Level UI**: Professional e-commerce interface
+- `frontend/` — Vite, React 19, TypeScript, Tailwind CSS, Framer Motion, and
+  Supabase client queries.
+- `backend/` — Spring Boot API for catalog maintenance and AI-assisted flows.
+- `db/migrations/` — PostgreSQL/Supabase schema and catalog-query indexes.
+- `scripts/` — explicit catalog import and maintenance scripts. These are not
+  run by the application build.
 
-### 🛍️ Shopping Features
-- Product search with filters (category, price, rating, color)
-- Wishlist functionality with heart icons
-- Shopping cart with localStorage persistence
-- Product recommendations based on AI analysis
-- Outfit coordination suggestions
+The deployed browser app uses Supabase for catalog reads. The Spring service is
+only needed for the API-backed AI and catalog-maintenance routes.
 
-### 🤖 AI Features
-- **S.A.M. Assistant**: GPT-3.5 powered shopping chatbot
-- **Pose Detection**: Real-time body tracking for virtual try-on
-- **Skin Analysis**: RGB-based skin tone classification
-- **Smart Recommendations**: Personalized product suggestions
+## Requirements
 
-## 🏗️ Architecture
+- Node.js 20.19+ or 22.12+ (required by Vite 7)
+- Java 21 (backend)
+- A Supabase project with the migrations applied
 
-### Frontend (React + TypeScript)
-```
-frontend/
-├── src/
-│   ├── components/          # Reusable UI components
-│   │   ├── SmartAssistant.tsx    # AI Chat Interface
-│   │   ├── ProductCard.tsx       # Product display cards
-│   │   ├── Navbar.tsx           # Navigation
-│   │   └── Footer.tsx           # Footer
-│   ├── pages/              # Main application pages
-│   │   ├── Home.tsx             # Homepage with hero banners
-│   │   ├── Shop.tsx             # Product catalog with filters
-│   │   ├── TryOn.tsx            # Virtual try-on studio
-│   │   ├── ProductDetails.tsx    # Individual product pages
-│   │   ├── Cart.tsx             # Shopping cart
-│   │   └── Chat.tsx             # Chat interface
-│   └── services/           # API and utility services
-│       ├── api.ts              # Product API client
-│       └── events.ts            # Event bus system
-├── package.json
-├── vite.config.ts
-└── tailwind.config.js
-```
+## Local setup
 
-### Backend (Spring Boot + Java)
-```
-backend/
-├── src/main/java/com/samzone/backend/
-│   ├── controller/         # REST API endpoints
-│   │   ├── ProductController.java    # Product CRUD operations
-│   │   ├── ChatController.java       # OpenAI integration
-│   │   └── TryOnController.java     # Try-on features
-│   ├── entity/            # JPA entities
-│   │   └── Product.java              # Product model
-│   ├── repository/        # Data access layer
-│   │   └── ProductRepository.java    # Product queries
-│   ├── service/           # Business logic
-│   │   └── ProductSeeder.java        # 800 product seeder
-│   └── config/            # Configuration
-├── src/main/resources/
-└── pom.xml
-```
-
-## 🛠️ Technology Stack
-
-### Frontend
-- **React 18** - Component-based UI framework
-- **TypeScript** - Type-safe JavaScript
-- **Tailwind CSS** - Utility-first styling
-- **Vite** - Fast build tool
-- **Lucide React** - Icon library
-- **TensorFlow.js** - ML/AI capabilities
-
-### Backend
-- **Spring Boot 3** - Java web framework
-- **H2 Database** - In-memory database
-- **JPA/Hibernate** - ORM layer
-- **OpenAI API** - GPT-3.5 integration
-- **Maven** - Build and dependency management
-
-### AI/ML
-- **TensorFlow MoveNet** - Pose detection
-- **OpenAI GPT-3.5** - Conversational AI
-- **Canvas API** - Real-time overlay rendering
-- **MediaDevices API** - Camera access
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js 18+
-- Java 17+
-- Maven 3.8+
-
-### Installation
-
-1. **Clone Repository**
-   ```bash
-   git clone <repository-url>
-   cd SAMZONE
-   ```
-
-2. **Backend Setup**
-   ```bash
-   cd backend
-   ./mvnw spring-boot:run
-   ```
-
-3. **Frontend Setup**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-
-### Environment Variables
-Create `.env` file in backend:
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-## 🎯 Usage
-
-### Virtual Try-On Flow
-1. Select a product from the catalog
-2. Click "Webcam" to activate camera
-3. AI analyzes body size and skin tone
-4. Product overlays on your body in real-time
-5. Receive size and color recommendations
-
-### AI Assistant Flow
-1. Click the chat button to open S.A.M.
-2. Type natural language queries:
-   - "Show black oversized tshirts under ₹1000"
-   - "What pants go with this hoodie?"
-   - "Best headphones under ₹5000"
-3. Get personalized recommendations and outfit suggestions
-
-## 📊 Product Catalog
-
-### Categories (800 Products)
-- **Shirts**: 200 items
-- **Pants**: 200 items  
-- **Shoes**: 150 items
-- **Accessories**: 100 items
-- **Gadgets**: 150 items
-
-### Product Fields
-- ID, Name, Brand, Category
-- Price, Discount, Rating
-- Colors, Sizes, Images
-- Description, Stock
-
-## 🔧 Development
-
-### Git Repository
-Properly configured Git tracking:
-- `.gitignore` excludes node_modules, build files, env files
-- Repository tracks only SAMZONE project files
-- Clean commit history with meaningful messages
-
-### VS Code Configuration
-Optimized workspace settings:
-- File watcher excludes large directories
-- Search excludes build artifacts
-- Improved performance and reduced CPU usage
-
-### Performance Optimizations
-- Lazy loading for React components
-- Efficient state management
-- Optimized bundle sizes
-- Smooth 60fps pose detection
-
-## 🎨 UI/UX Features
-
-### Amazon-Level Design
-- Hero banners with gradient backgrounds
-- Advanced filtering sidebar
-- Product cards with ratings, wishlist, quick actions
-- Responsive grid layouts
-- Smooth animations and transitions
-
-### Accessibility
-- Semantic HTML5 structure
-- ARIA labels and roles
-- Keyboard navigation support
-- Screen reader compatibility
-
-## 🔮 AI Capabilities
-
-### Pose Detection
-- Real-time body keypoint detection
-- Shoulder width estimation
-- Dynamic clothing positioning
-- Smooth 60fps rendering
-
-### Skin Tone Analysis
-- RGB pixel sampling from face region
-- Classification: Light/Medium/Dark
-- Personalized color recommendations
-- Warmth detection and matching
-
-### Conversational AI
-- Natural language understanding
-- Context-aware responses
-- Product search integration
-- Outfit coordination suggestions
-
-## 📱 Responsive Design
-
-### Mobile Optimized
-- Touch-friendly interfaces
-- Optimized camera access
-- Swipeable product galleries
-- Mobile-first navigation
-
-### Desktop Features
-- Hover states and micro-interactions
-- Keyboard shortcuts
-- Multi-window support
-- Advanced filtering options
-
-## 🚀 Deployment
-
-### Production Build
 ```bash
-# Frontend
+cp frontend/.env.example frontend/.env.local
 cd frontend
-npm run build
-
-# Backend  
-cd backend
-./mvnw clean package
+npm install
+npm run dev
 ```
 
-### Environment Configuration
-- **Development**: Local H2 database
-- **Production**: PostgreSQL/MySQL support
-- **API Keys**: Environment variable management
-- **CORS**: Proper cross-origin configuration
+In another terminal, export/configure the backend variables in your shell or
+IDE (Spring Boot does not automatically load `.env` files), then start it:
 
-## 🤝 Contributing
+```bash
+cd backend
+./mvnw spring-boot:run
+```
 
-### Code Style
-- TypeScript strict mode
-- ESLint configuration
-- Prettier formatting
-- Conventional commits
+The frontend defaults to `http://localhost:8080` for API-backed operations.
 
-### Testing
-- Unit tests for components
-- Integration tests for APIs
-- E2E tests for user flows
+## Environment variables
 
-## 📄 License
+Frontend (`frontend/.env.local`):
 
-MIT License - Feel free to use this project for personal or commercial purposes.
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | Yes | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Yes | Public Supabase anon key; never use a service-role key here |
+| `VITE_API_URL` | No | Spring API origin; defaults to `http://localhost:8080` |
+| `VITE_USE_MOCK_API` | No | Set `true` only for local mock-data development |
 
----
+Backend/hosting environment:
 
-**SAMZONE** - Where AI meets fashion shopping! 🛍️✨
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `GEMINI_API_KEY` | Optional | Enables the backend Gemini-assisted response path |
+| `SAMZONE_ADMIN_API_KEY` | Required for admin writes | Server-only token for maintenance POST routes |
+| `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` | Production | PostgreSQL connection configuration |
+
+## Database
+
+Apply migrations in order:
+
+1. `20240723_add_flipkart_schema.sql`
+2. `20240724_add_shopping_infrastructure.sql`
+3. `20240725_product_search_performance.sql`
+
+The final migration creates the indexed `search_vector` used by catalog search.
+Before exposing a Supabase project publicly, enable and test Row Level Security
+for every table and Storage bucket. Do not rely on the browser client for
+authorization.
+
+## Validation
+
+```bash
+cd frontend && npm run build
+cd backend && ./mvnw -DskipTests package
+```
+
+`npm run lint` currently reports legacy issues that must be resolved before a
+production release. The backend maintenance endpoints intentionally deny POST
+writes unless `SAMZONE_ADMIN_API_KEY` is configured and sent via the
+server-only `X-Admin-Token` header.
+
+## Product limitations
+
+- Login is a local demo flow, not Supabase Auth.
+- Cart, wishlist, and compare state are stored locally in the browser.
+- Some legacy components and navigation links are not part of the live route
+  graph; they require consolidation before a production release.
+- No screenshots are committed because the project does not contain stable,
+  reviewable capture assets.
+
+## License
+
+Released under the [MIT License](LICENSE).

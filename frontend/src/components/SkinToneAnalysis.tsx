@@ -5,6 +5,7 @@ import { productApi } from '../services/api';
 import type { Product } from '../services/api';
 import { getProductImage } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
+import { trackProductInteraction } from '../services/aiShoppingFeatures';
 
 interface SkinToneResult {
     tone: 'light' | 'medium' | 'dark';
@@ -114,8 +115,11 @@ const SkinToneAnalysis: React.FC = () => {
     const fetchProductsForColor = useCallback((color: string) => {
         setActiveColorTab(color);
         setColorProductsLoading(true);
-        productApi.searchByColor(color)
-            .then(setColorProducts)
+        productApi.searchByColor(color, 8)
+            .then((colorMatches) => {
+                // searchByColor already queries Supabase by name/description — these are real catalog products
+                setColorProducts(colorMatches.slice(0, 8));
+            })
             .catch(() => setColorProducts([]))
             .finally(() => setColorProductsLoading(false));
     }, []);
@@ -685,12 +689,15 @@ const SkinToneAnalysis: React.FC = () => {
                                                     </p>
                                                     <div className="flex gap-2 mt-auto">
                                                         <button
-                                                            onClick={() => addToCart({
-                                                                id: product.id,
-                                                                name: product.name,
-                                                                price: product.price,
-                                                                image: getProductImage(product),
-                                                            })}
+                                                            onClick={() => {
+                                                                trackProductInteraction(product, 'add');
+                                                                addToCart({
+                                                                    id: product.id,
+                                                                    name: product.name,
+                                                                    price: product.price,
+                                                                    image: getProductImage(product),
+                                                                });
+                                                            }}
                                                             className="flex-1 bg-purple-600 text-white text-xs py-1.5 rounded-lg hover:bg-purple-700 transition-colors"
                                                         >
                                                             Add to Cart

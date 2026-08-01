@@ -3,7 +3,7 @@ import { productApi, type Product } from '../services/api';
 
 const PASSCODE = 'samzone2026';
 const SESSION_KEY = 'samzone_admin_unlocked';
-const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api`;
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:8081'}/api`;
 
 interface AdminStats {
     totalProducts: number;
@@ -22,6 +22,42 @@ const Admin: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<Product[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
+
+    const [importing, setImporting] = useState(false);
+    const [importMsg, setImportMsg] = useState('');
+    const [importError, setImportError] = useState('');
+
+    const handleImportDresses = async () => {
+        setImporting(true);
+        setImportMsg('');
+        setImportError('');
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/import-dresses`, {
+                method: 'POST',
+                headers: {
+                    'X-Admin-Token': 'dev-token-secret-12345'
+                }
+            });
+            if (!res.ok) {
+                throw new Error(`HTTP Error ${res.status}`);
+            }
+            const data = await res.json();
+            if (data.status === 'SUCCESS') {
+                setImportMsg(`Successfully imported ${data.inserted} dresses. (Total read: ${data.totalRead}, Skipped: ${data.skippedInvalid})`);
+                // Reload stats
+                fetch(`${API_BASE_URL}/admin/stats`)
+                    .then((res) => res.json())
+                    .then(setStats)
+                    .catch(() => {});
+            } else {
+                setImportError(`Import failed: ${data.status}`);
+            }
+        } catch (err: any) {
+            setImportError(`Request failed: ${err.message}`);
+        } finally {
+            setImporting(false);
+        }
+    };
 
     useEffect(() => {
         if (!unlocked) return;
@@ -105,6 +141,47 @@ const Admin: React.FC = () => {
                             {statsLoading ? '…' : stats?.totalCategories ?? 0}
                         </p>
                     </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
+                    <h2 className="text-lg font-bold text-gray-900 mb-2">Dataset Management</h2>
+                    <p className="text-sm text-gray-500 mb-4">
+                        Perform administrative operations to update the e-commerce search catalog and sync fashion items into the database.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-4">
+                        <button
+                            onClick={handleImportDresses}
+                            disabled={importing}
+                            className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 ${
+                                importing
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow'
+                            }`}
+                        >
+                            {importing ? (
+                                <>
+                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                    Importing Dress Dataset...
+                                </>
+                            ) : (
+                                'Import Dress Dataset to Backend'
+                            )}
+                        </button>
+                    </div>
+
+                    {importMsg && (
+                        <div className="mt-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm border border-green-100">
+                            {importMsg}
+                        </div>
+                    )}
+                    {importError && (
+                        <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
+                            {importError}
+                        </div>
+                    )}
                 </div>
 
                 <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
