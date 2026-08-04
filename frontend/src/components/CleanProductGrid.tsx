@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { addToCart } from '../utils/cart';
 import { toggleWishlist, isWishlisted } from '../utils/wishlist';
-import { Filter, Search, ShoppingCart, Sparkles, TrendingUp, Heart } from 'lucide-react';
+import { Filter, Search, ShoppingCart, Sparkles, TrendingUp, Heart, Shirt } from 'lucide-react';
+import { normalizeImageUrl, PLACEHOLDER } from '../utils/productImage';
 import {
     searchProducts,
     CATEGORY_OPTIONS,
@@ -147,18 +148,20 @@ const CleanProductGrid: React.FC = () => {
 
     const ProductCard = ({ product }: { product: CatalogProduct }) => {
         const [liked, setLiked] = useState(() => isWishlisted(product.id));
+        const imgSrc = normalizeImageUrl(product.image_url);
 
         return (
         <Link to={`/product/${product.id}`} className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 h-full flex flex-col">
-            <div className="relative aspect-[3/4] overflow-hidden flex items-center justify-center bg-gray-50">
+            <div className="relative aspect-[3/4] overflow-hidden flex items-center justify-center bg-slate-100">
+                <Shirt className="w-10 h-10 text-slate-300 absolute" />
                 <img
-                    src={product.image_url || 'https://rukminim2.flixcart.com/image/416/416/xif0q/shirt/t/u/p/-original-imaghgccgfnbhzxh.jpeg?q=70'}
+                    src={imgSrc}
                     alt={product.name}
-                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 relative z-10"
                     loading="lazy"
                     decoding="async"
                     onError={(e) => {
-                        e.currentTarget.src = 'https://rukminim2.flixcart.com/image/416/416/xif0q/shirt/t/u/p/-original-imaghgccgfnbhzxh.jpeg?q=70';
+                        e.currentTarget.src = PLACEHOLDER;
                         e.currentTarget.onerror = null;
                     }}
                 />

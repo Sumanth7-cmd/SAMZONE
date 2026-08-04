@@ -13,6 +13,7 @@ const CompareFloatingButton: React.FC = () => {
     return (
         <button
             onClick={() => navigate('/compare')}
+            aria-label={`Compare ${compareItems.length} selected products`}
             className="fixed bottom-24 left-4 z-40 bg-indigo-600 text-white px-4 py-3 rounded-full shadow-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 font-medium text-sm"
         >
             <Scale className="w-4 h-4" />

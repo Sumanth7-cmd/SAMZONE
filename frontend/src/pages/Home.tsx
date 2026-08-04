@@ -110,17 +110,17 @@ const Home: React.FC = () => {
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <Link
                                 to="/shop"
-                                className="inline-flex items-center px-8 py-3 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-300"
+                                className="inline-flex items-center px-8 py-3 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-white"
                             >
                                 Shop Now
                                 <ArrowRight className="ml-2 h-5 w-5" />
                             </Link>
                             <Link
-                                to="/try-on"
-                                className="inline-flex items-center px-8 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-indigo-600 transition-colors duration-300"
+                                to="/shop"
+                                className="inline-flex items-center px-8 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white hover:text-indigo-600 transition-colors duration-300 shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-white"
                             >
-                                Try Virtual Try-On
-                                <Sparkles className="ml-2 h-5 w-5" />
+                                Explore Collection
+                                <ArrowRight className="ml-2 h-5 w-5" />
                             </Link>
                         </div>
                     </div>
@@ -187,9 +187,9 @@ const Home: React.FC = () => {
                             <div className="flex items-center justify-center w-12 h-12 bg-indigo-100 rounded-lg mb-4">
                                 <Sparkles className="h-6 w-6 text-indigo-600" />
                             </div>
-                            <h3 className="text-xl font-semibold mb-2">AI-Powered Try-On</h3>
+                            <h3 className="text-xl font-semibold mb-2">AI Outfit Stylist</h3>
                             <p className="text-gray-600">
-                                See how clothes look on you before buying with our advanced virtual try-on technology.
+                                Get instant, personalized outfit recommendations tailored to any occasion from real apparel data.
                             </p>
                         </div>
                         <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">

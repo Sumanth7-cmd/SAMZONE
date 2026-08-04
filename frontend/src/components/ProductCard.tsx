@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Star, Eye, Heart, Sparkles } from 'lucide-react';
+import { ShoppingBag, Star, Eye, Heart, Sparkles, Shirt } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Product } from '../services/api';
 import { getCart, addToCart as addToCartUtil } from '../utils/cart';
@@ -78,11 +78,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       whileHover={{ y: -5 }}
       className="card-surface group overflow-hidden"
     >
-      <Link to={`/product/${product.id}`} className="relative aspect-[4/5] overflow-hidden bg-slate-50 block">
+      <Link to={`/product/${product.id}`} className="relative aspect-[4/5] overflow-hidden bg-slate-100 flex items-center justify-center block">
+        <Shirt className="w-10 h-10 text-slate-300 absolute" />
         <motion.img
           src={imageSrc}
           alt={product.name}
-          className="w-full h-full object-cover object-center"
+          className="w-full h-full object-cover object-center relative z-10"
           loading="lazy"
           onError={(e) => {
             e.currentTarget.src = PLACEHOLDER;
