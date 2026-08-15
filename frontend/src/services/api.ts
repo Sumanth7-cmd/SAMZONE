@@ -690,9 +690,17 @@ export function isAdultFashionApparel(product: Product, targetGender?: 'men' | '
 
     // Gender check if targetGender provided
     if (targetGender === 'men') {
-        return (catLower.includes('men') || nameLower.includes('men')) && !catLower.includes('women') && !nameLower.includes('women');
+        const catClean = catLower.replace(/women'?s/gi, '');
+        const nameClean = nameLower.replace(/women'?s/gi, '');
+        const isWomens = catLower.includes("women's") || catLower.includes('womens') || nameLower.includes("women's") || nameLower.includes('womens') || catLower.includes('saree') || catLower.includes('lehenga') || nameLower.includes('saree') || catLower.includes('bra');
+        const isMens = catClean.includes("men's") || catClean.includes('mens') || nameClean.includes("men's") || nameClean.includes('mens') || catLower.includes('sherwani') || nameLower.includes('sherwani');
+        return isMens && !isWomens;
     } else if (targetGender === 'women') {
-        return catLower.includes('women') || nameLower.includes('women') || catLower.includes('saree') || catLower.includes('kurti') || catLower.includes('lehenga');
+        const isWomens = catLower.includes("women's") || catLower.includes('womens') || nameLower.includes("women's") || nameLower.includes('womens') || catLower.includes('saree') || catLower.includes('kurti') || catLower.includes('lehenga') || nameLower.includes('saree');
+        const catClean = catLower.replace(/women'?s/gi, '');
+        const nameClean = nameLower.replace(/women'?s/gi, '');
+        const isMensOnly = (catClean.includes("men's") || nameClean.includes("men's")) && !isWomens;
+        return isWomens && !isMensOnly;
     }
 
     return true;

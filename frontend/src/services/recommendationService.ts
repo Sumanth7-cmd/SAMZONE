@@ -1,4 +1,13 @@
 import { productApi, type Product } from './api';
+import { filterPresentationSafe } from './filters/presentationSafe';
+import {
+  DEFAULT_CONTEXT,
+  applyHardFilters,
+  retrieveCandidates,
+  scoreCandidates,
+  selectDiverseProducts,
+  type RecommendationContext,
+} from './recommendationEngine';
 
 export interface ViewedProduct {
     id: number;
@@ -31,46 +40,45 @@ function mostFrequent(values: string[]): string | undefined {
     return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
-export async function getRecommendations(limit: number = 8): Promise<Product[]> {
+function buildContextFromHistory(history: ViewedProduct[]): RecommendationContext {
+    const viewedIds = history.map((p) => p.id);
+    return {
+        ...DEFAULT_CONTEXT,
+        category: mostFrequent(history.map((p) => p.category)),
+        brand: mostFrequent(history.map((p) => p.brand)),
+        excludedProductIds: viewedIds,
+        recentlyShownIds: viewedIds,
+    };
+}
+
+export async function getRecommendations(limit: number = 8, customContext?: RecommendationContext): Promise<Product[]> {
     const history = getViewedHistory();
-    const viewedIds = new Set(history.map((p) => p.id));
+    const context = customContext ?? (history.length > 0 ? buildContextFromHistory(history) : DEFAULT_CONTEXT);
 
-    let candidatePool: Product[] = [];
+    const retrieval = await retrieveCandidates(context);
+    let candidatePool = retrieval.products;
 
-    if (history.length === 0) {
-        return productApi.getBestsellers();
-    } else {
-        const topCategory = mostFrequent(history.map((p) => p.category));
-        const topBrand = mostFrequent(history.map((p) => p.brand));
-
-        const result = await productApi.getProducts(0, 40, {
-            category: topCategory,
-            brand: topBrand,
+    if (candidatePool.length === 0) {
+        const fallback = await productApi.getProducts(0, 40, {
+            category: context.category,
+            brand: context.brand,
             sortBy: 'rating',
             sortDir: 'desc',
         });
-
-        let recommendations = result.content.filter((p) => !viewedIds.has(p.id));
-
-        if (recommendations.length < limit && topBrand) {
-            const byCategory = await productApi.getProducts(0, 40, {
-                category: topCategory,
-                sortBy: 'rating',
-                sortDir: 'desc',
-            });
-            const merged = new Map(recommendations.map((p) => [p.id, p]));
-            for (const p of byCategory.content) {
-                if (!viewedIds.has(p.id)) merged.set(p.id, p);
-            }
-            recommendations = [...merged.values()];
-        }
-
-        if (recommendations.length === 0) {
-            return productApi.getBestsellers();
-        }
-
-        candidatePool = recommendations;
+        const presentationSafe = filterPresentationSafe(fallback.content);
+        candidatePool = applyHardFilters(presentationSafe, context).filter(
+            (p) => !context.excludedProductIds.includes(p.id),
+        );
     }
 
-    return productApi.rankApparelFirst(candidatePool, limit);
+    if (candidatePool.length === 0) {
+        const bestsellers = await productApi.getBestsellers();
+        const safeBestsellers = filterPresentationSafe(bestsellers);
+        candidatePool = applyHardFilters(safeBestsellers, context);
+    }
+
+    const scored = scoreCandidates(candidatePool, context);
+    return selectDiverseProducts(scored, limit, {
+        excludeIds: context.excludedProductIds,
+    });
 }

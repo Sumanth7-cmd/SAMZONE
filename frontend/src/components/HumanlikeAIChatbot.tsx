@@ -12,6 +12,7 @@ interface Message {
     timestamp: Date;
     isTyping?: boolean;
     products?: Product[];
+    productHeading?: string;
 }
 
 const QUICK_REPLIES = [
@@ -75,7 +76,7 @@ const HumanlikeAIChatbot: React.FC = () => {
         scrollToBottom();
     }, [messages]);
 
-    const simulateStreamingResponse = async (response: string, products: Product[] = [], reasoning: string[] = []) => {
+    const simulateStreamingResponse = async (response: string, products: Product[] = [], reasoning: string[] = [], productHeading?: string) => {
         const words = response.split(' ');
         let currentText = '';
 
@@ -102,6 +103,7 @@ const HumanlikeAIChatbot: React.FC = () => {
             if (lastMessage) {
                 lastMessage.isTyping = false;
                 lastMessage.products = products;
+                lastMessage.productHeading = productHeading;
                 lastMessage.text = response + (reasoning.length > 0 ? `\n\nWhy these picks:\n• ${reasoning.join('\n• ')}` : '');
             }
             return newMessages;
@@ -144,7 +146,7 @@ const HumanlikeAIChatbot: React.FC = () => {
             }));
 
             const flattenedReasoning = reasoning.flatMap((entry) => entry).slice(0, 4);
-            await simulateStreamingResponse(assistantReply.reply, assistantReply.products, flattenedReasoning);
+            await simulateStreamingResponse(assistantReply.reply, assistantReply.products, flattenedReasoning, assistantReply.heading);
             setAssistantContext(assistantReply.context);
         } catch (err) {
             await simulateStreamingResponse(
@@ -280,7 +282,7 @@ const HumanlikeAIChatbot: React.FC = () => {
                                         <div className="bg-gray-50 rounded-lg p-4 mt-2">
                                             <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                                                 <ShoppingBag className="w-4 h-4" />
-                                                Recommended Products
+                                                {message.productHeading || 'Recommended Products'}
                                             </h4>
                                             <div className="grid grid-cols-2 gap-3">
                                                 {(message.products ?? []).map((product: any) => (
