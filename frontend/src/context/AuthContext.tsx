@@ -30,18 +30,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Initial session check
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            if (session?.user) {
-                setUser({
-                    id: session.user.id,
-                    email: session.user.email || '',
-                    fullName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
-                    avatarUrl: session.user.user_metadata?.avatar_url,
-                });
-            } else {
-                // Check localStorage fallback for demo/offline users
+        let isMounted = true;
+
+        const fetchSession = async () => {
+            try {
+                const sessionPromise = supabase.auth.getSession();
+                const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+                    setTimeout(() => resolve({ data: { session: null } }), 3000)
+                );
+                const res = await Promise.race([sessionPromise, timeoutPromise]);
+                const session = res.data?.session || null;
+
+                if (!isMounted) return;
+                setSession(session);
+
+                if (session?.user) {
+                    setUser({
+                        id: session.user.id,
+                        email: session.user.email || '',
+                        fullName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
+                        avatarUrl: session.user.user_metadata?.avatar_url,
+                    });
+                } else {
+                    const saved = localStorage.getItem(LOCAL_USER_KEY);
+                    if (saved) {
+                        try {
+                            setUser(JSON.parse(saved));
+                        } catch {
+                            localStorage.removeItem(LOCAL_USER_KEY);
+                        }
+                    }
+                }
+            } catch {
+                if (!isMounted) return;
                 const saved = localStorage.getItem(LOCAL_USER_KEY);
                 if (saved) {
                     try {
@@ -50,12 +71,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         localStorage.removeItem(LOCAL_USER_KEY);
                     }
                 }
+            } finally {
+                if (isMounted) setLoading(false);
             }
-            setLoading(false);
-        });
+        };
 
-        // Listen for auth state changes
+        fetchSession();
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!isMounted) return;
             setSession(session);
             if (session?.user) {
                 const profile: UserProfile = {
@@ -75,18 +99,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            isMounted = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
     const signIn = async (email: string, pass: string) => {
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
+            const authPromise = supabase.auth.signInWithPassword({
                 email: email.trim(),
                 password: pass,
             });
+            const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
+                setTimeout(() => resolve({ data: null, error: new Error('Network timeout') }), 3000)
+            );
+
+            const { data, error } = await Promise.race([authPromise, timeoutPromise]);
 
             if (error) {
-                // Fallback for demo mode if Supabase Auth isn't configured or user doesn't exist yet
                 if (pass.length >= 6) {
                     const fallbackUser: UserProfile = {
                         id: 'user_' + Date.now(),
@@ -100,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return { error: new Error(error.message) };
             }
 
-            if (data.user) {
+            if (data?.user) {
                 const profile: UserProfile = {
                     id: data.user.id,
                     email: data.user.email || email,
@@ -112,7 +143,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             return { error: null };
         } catch (err: any) {
-            // Fallback for demo logins
             const fallbackUser: UserProfile = {
                 id: 'user_' + Date.now(),
                 email: email.trim(),
@@ -126,16 +156,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signUp = async (email: string, pass: string, fullName: string) => {
         try {
-            const { data, error } = await supabase.auth.signUp({
+            const authPromise = supabase.auth.signUp({
                 email: email.trim(),
                 password: pass,
                 options: {
                     data: { full_name: fullName.trim() },
                 },
             });
+            const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
+                setTimeout(() => resolve({ data: null, error: new Error('Network timeout') }), 3000)
+            );
+
+            const { data, error } = await Promise.race([authPromise, timeoutPromise]);
 
             if (error) {
-                // Fallback for demo signups
                 const fallbackUser: UserProfile = {
                     id: 'user_' + Date.now(),
                     email: email.trim(),
@@ -146,7 +180,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return { error: null };
             }
 
-            if (data.user) {
+            if (data?.user) {
                 const profile: UserProfile = {
                     id: data.user.id,
                     email: data.user.email || email,

@@ -322,60 +322,75 @@ const PremiumNavbar: React.FC = () => {
                                     event.stopPropagation();
                                     setIsAccountDropdownOpen((open) => !open);
                                 }}
-                                className="inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-purple-700 transition cursor-pointer"
+                                className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition cursor-pointer border border-transparent hover:border-purple-200"
                                 aria-expanded={isAccountDropdownOpen}
                                 aria-haspopup="menu"
                             >
-                                <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold">
-                                    {user ? (user.fullName?.[0]?.toUpperCase() || 'U') : <User className="w-4 h-4" />}
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center text-xs font-black shadow-sm">
+                                    {user ? (user.fullName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U') : <User className="w-4 h-4" />}
                                 </div>
-                                <span className="hidden md:block max-w-[100px] truncate">
-                                    {user ? (user.fullName || 'Account') : 'Account'}
+                                <span className="hidden md:block max-w-[120px] truncate">
+                                    {user ? `Hi, ${user.fullName ? user.fullName.trim().split(' ')[0] : (user.email ? user.email.split('@')[0] : 'User')}` : 'Account'}
                                 </span>
                                 <ChevronDown className="w-4 h-4 text-slate-400" />
                             </button>
 
                             {isAccountDropdownOpen && (
-                                <div className="absolute right-0 top-full z-30 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-2xl p-1.5 font-sans">
+                                <div className="absolute right-0 top-full z-30 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-2xl p-2 font-sans animate-fade-in">
                                     {user ? (
                                         <>
-                                            <div className="px-3 py-2.5 bg-slate-50 rounded-xl mb-1 border border-slate-100">
-                                                <p className="text-xs font-bold text-slate-900 truncate">{user.fullName || 'User'}</p>
+                                            <div className="px-3 py-2.5 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl mb-1.5 border border-purple-100/80">
+                                                <p className="text-xs font-extrabold text-purple-950 truncate">
+                                                    {user.fullName || 'SAMZONE User'}
+                                                </p>
                                                 <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
                                             </div>
+
                                             <Link
                                                 to="/profile"
-                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition"
+                                                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition"
                                                 onClick={() => setIsAccountDropdownOpen(false)}
                                             >
                                                 <User className="w-4 h-4 text-purple-600" />
-                                                My Profile
+                                                <span>My Profile</span>
                                             </Link>
-                                            <Link
-                                                to="/orders"
-                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition"
-                                                onClick={() => setIsAccountDropdownOpen(false)}
-                                            >
-                                                <Package className="w-4 h-4 text-indigo-600" />
-                                                Orders
-                                            </Link>
+
                                             <Link
                                                 to="/wishlist"
-                                                className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition"
+                                                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition"
                                                 onClick={() => setIsAccountDropdownOpen(false)}
                                             >
                                                 <Heart className="w-4 h-4 text-pink-600" />
-                                                Wishlist
+                                                <span>Wishlist</span>
                                             </Link>
+
+                                            <Link
+                                                to="/cart"
+                                                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition"
+                                                onClick={() => setIsAccountDropdownOpen(false)}
+                                            >
+                                                <ShoppingCart className="w-4 h-4 text-indigo-600" />
+                                                <span>Cart</span>
+                                            </Link>
+
+                                            <Link
+                                                to="/profile"
+                                                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition"
+                                                onClick={() => setIsAccountDropdownOpen(false)}
+                                            >
+                                                <HelpCircle className="w-4 h-4 text-emerald-600" />
+                                                <span>Settings</span>
+                                            </Link>
+
                                             <button
                                                 onClick={() => {
                                                     setIsAccountDropdownOpen(false);
                                                     signOut();
                                                 }}
-                                                className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition cursor-pointer text-left mt-1 border-t border-slate-100"
+                                                className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 transition cursor-pointer text-left mt-1 border-t border-slate-100"
                                             >
                                                 <LogOut className="w-4 h-4 text-red-500" />
-                                                Sign Out
+                                                <span>Logout</span>
                                             </button>
                                         </>
                                     ) : (
@@ -386,7 +401,7 @@ const PremiumNavbar: React.FC = () => {
                                                 onClick={() => setIsAccountDropdownOpen(false)}
                                             >
                                                 <LogIn className="w-4 h-4" />
-                                                Sign In / Register
+                                                <span>Sign In / Register</span>
                                             </Link>
                                             <Link
                                                 to="/help"
@@ -394,7 +409,7 @@ const PremiumNavbar: React.FC = () => {
                                                 onClick={() => setIsAccountDropdownOpen(false)}
                                             >
                                                 <HelpCircle className="w-4 h-4" />
-                                                Help & Support
+                                                <span>Help & Support</span>
                                             </Link>
                                         </>
                                     )}

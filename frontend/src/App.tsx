@@ -1,5 +1,5 @@
 import ErrorBoundary from './components/ErrorBoundary';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import PremiumNavbar from './components/PremiumNavbar';
 import PremiumFooter from './components/PremiumFooter';
@@ -8,6 +8,7 @@ import CompareFloatingButton from './components/CompareFloatingButton';
 import { CompareProvider } from './context/CompareContext';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import GuestRoute from './components/GuestRoute';
 import { Loader } from 'lucide-react';
 
 // Lazy load pages for optimal performance
@@ -52,8 +53,17 @@ function App() {
                                 <ErrorBoundary>
                                     <Suspense fallback={<PageLoader />}>
                                         <Routes>
-                                            {/* Public Routes */}
-                                            <Route path="/" element={<Home />} />
+                                            {/* Authenticated Home Route */}
+                                            <Route
+                                                path="/"
+                                                element={
+                                                    <ProtectedRoute>
+                                                        <Home />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+
+                                            {/* Catalog & Features Routes */}
                                             <Route path="/shop" element={<CleanProductGrid />} />
                                             <Route path="/skin-tone" element={<SkinToneAnalysis />} />
                                             <Route path="/product/:id" element={<ProductDetails />} />
@@ -62,9 +72,23 @@ function App() {
                                             <Route path="/stylist" element={<Stylist />} />
                                             <Route path="/style-dna" element={<StyleDna />} />
 
-                                            {/* Authentication Routes */}
-                                            <Route path="/login" element={<Login />} />
-                                            <Route path="/signup" element={<Signup />} />
+                                            {/* Authentication Routes (Guest Only) */}
+                                            <Route
+                                                path="/login"
+                                                element={
+                                                    <GuestRoute>
+                                                        <Login />
+                                                    </GuestRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/signup"
+                                                element={
+                                                    <GuestRoute>
+                                                        <Signup />
+                                                    </GuestRoute>
+                                                }
+                                            />
                                             <Route path="/forgot-password" element={<ForgotPassword />} />
                                             <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -109,6 +133,8 @@ function App() {
                                                     </ProtectedRoute>
                                                 }
                                             />
+                                            {/* Catch-All Fallback Route */}
+                                            <Route path="*" element={<Navigate to="/" replace />} />
                                         </Routes>
                                     </Suspense>
                                 </ErrorBoundary>
