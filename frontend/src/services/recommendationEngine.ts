@@ -9,6 +9,32 @@ export type Gender = 'men' | 'women';
 
 export type GenderConfidence = 'explicit' | 'quiz' | 'image_high' | 'image_low' | 'inferred' | 'none';
 
+export type ProductTypeId =
+  | 'jeans'
+  | 'shorts'
+  | 'trousers'
+  | 'chinos'
+  | 'track-pants'
+  | 'shirt'
+  | 'tshirt'
+  | 'kurta'
+  | 'sherwani'
+  | 'saree'
+  | 'lehenga'
+  | 'dress'
+  | 'top'
+  | 'skirt'
+  | 'suit'
+  | 'blazer'
+  | 'jacket'
+  | 'sneakers'
+  | 'formal-shoes'
+  | 'heels'
+  | 'sandals'
+  | 'shoes';
+
+export type ComplementaryCategory = 'tops' | 'bottoms' | 'footwear' | 'accessories' | 'outerwear';
+
 export type OccasionId =
   | 'college'
   | 'casual'
@@ -41,6 +67,9 @@ export interface RecommendationContext {
   recentlyShownIds: number[];
   turnCount: number;
   cheaperRequested: boolean;
+  productType?: ProductTypeId;
+  complementaryTarget?: ComplementaryCategory;
+  referenceItem?: string;
 }
 
 export interface ScoredProduct {
@@ -257,6 +286,259 @@ export const OCCASION_TAXONOMY: Record<
     },
   },
 };
+
+// ---------------------------------------------------------------------------
+// Product type taxonomy — strict, name-first matching (no brand-only matches,
+// no broad category-path substring override)
+// ---------------------------------------------------------------------------
+
+export interface ProductTypeSpec {
+  id: ProductTypeId;
+  label: string;
+  /** Regex fragments (word-bounded when matched) that must appear in NAME/CATEGORY leaf */
+  positive: RegExp[];
+  /** If any of these match, product is REJECTED even if positive hits */
+  negative?: RegExp[];
+  /** Query aliases that select this productType */
+  aliases: RegExp[];
+  complementary?: ComplementaryCategory;
+}
+
+// Note: match against product.name primarily; category is secondary evidence.
+// We deliberately do NOT trust broad category paths like "Jeans & Shorts" — a
+// shorts product in that path must not satisfy a jeans query.
+export const PRODUCT_TYPE_TAXONOMY: Record<ProductTypeId, ProductTypeSpec> = {
+  jeans: {
+    id: 'jeans', label: 'jeans',
+    positive: [/\bjeans?\b/i, /\bdenim\b/i],
+    negative: [/\bshorts?\b/i, /\bsunglass/i, /\bwayfarer/i, /\bt[-\s]?shirt/i, /\bshirt\b/i, /\bshoes?\b/i, /\bwatch/i, /\bbag\b/i, /\bcap\b/i, /\bbelt\b/i],
+    aliases: [/\bjeans?\b/i, /\bdenim\b/i],
+    complementary: 'bottoms',
+  },
+  shorts: {
+    id: 'shorts', label: 'shorts',
+    positive: [/\bshorts?\b/i, /\bbermuda/i],
+    negative: [/\bjeans?\b/i, /\bshirt/i, /\bshoes?\b/i],
+    aliases: [/\bshorts?\b/i, /\bbermuda/i],
+    complementary: 'bottoms',
+  },
+  trousers: {
+    id: 'trousers', label: 'trousers',
+    positive: [/\btrousers?\b/i, /\bpants?\b/i, /\bformal pant/i],
+    negative: [/\bjeans?\b/i, /\bshorts?\b/i, /\btrack\b/i, /\bshirt\b/i, /\bshoes?\b/i, /\bwatch/i, /\bbag\b/i, /\bcap\b/i],
+    aliases: [/\btrousers?\b/i, /\bpants?\b/i, /\bformal pant/i, /\bformals?\s+pant/i],
+    complementary: 'bottoms',
+  },
+  chinos: {
+    id: 'chinos', label: 'chinos',
+    positive: [/\bchinos?\b/i],
+    aliases: [/\bchinos?\b/i],
+    complementary: 'bottoms',
+  },
+  'track-pants': {
+    id: 'track-pants', label: 'track pants',
+    positive: [/\btrack\s?pants?\b/i, /\bjogger/i, /\bsweatpant/i],
+    aliases: [/\btrack\s?pants?\b/i, /\bjogger/i, /\bsweatpant/i],
+    complementary: 'bottoms',
+  },
+  shirt: {
+    id: 'shirt', label: 'shirts',
+    positive: [/\bshirts?\b/i],
+    negative: [/\bt[-\s]?shirts?\b/i, /\bsweatshirt/i, /\bshirt\s*dress/i, /\bshoes?\b/i, /\bjeans?\b/i, /\bpants?\b/i, /\bwatch/i, /\bbag\b/i],
+    aliases: [/\bshirts?\b/i, /\bformal\s+shirt/i, /\bcasual\s+shirt/i],
+    complementary: 'tops',
+  },
+  tshirt: {
+    id: 'tshirt', label: 't-shirts',
+    positive: [/\bt[-\s]?shirts?\b/i, /\btees?\b/i, /\btee[-\s]?shirt/i],
+    negative: [/\bshoes?\b/i, /\bjeans?\b/i, /\bpants?\b/i, /\bwatch/i],
+    aliases: [/\bt[-\s]?shirts?\b/i, /\btees?\b/i],
+    complementary: 'tops',
+  },
+  kurta: {
+    id: 'kurta', label: 'kurtas',
+    positive: [/\bkurtas?\b/i, /\bkurta\s+set/i],
+    negative: [/\bkurti\b/i],
+    aliases: [/\bkurtas?\b/i],
+    complementary: 'tops',
+  },
+  sherwani: {
+    id: 'sherwani', label: 'sherwanis',
+    positive: [/\bsherwani/i, /\bbandhgala/i],
+    aliases: [/\bsherwani/i, /\bbandhgala/i],
+  },
+  saree: {
+    id: 'saree', label: 'sarees',
+    positive: [/\bsarees?\b/i, /\bsari\b/i],
+    aliases: [/\bsarees?\b/i, /\bsari\b/i],
+  },
+  lehenga: {
+    id: 'lehenga', label: 'lehengas',
+    positive: [/\blehenga/i, /\bghagra/i],
+    aliases: [/\blehenga/i],
+  },
+  dress: {
+    id: 'dress', label: 'dresses',
+    positive: [/\bdress(es)?\b/i, /\bgown\b/i, /\bmaxi\b/i, /\bfrock\b/i],
+    negative: [/\bkurta\b/i, /\bnight\s+dress/i, /\bdress\s+material/i, /\bpant\b/i, /\bshirt\b/i],
+    aliases: [/\bdress(es)?\b/i, /\bgown\b/i],
+    complementary: 'tops',
+  },
+  top: {
+    id: 'top', label: 'tops',
+    positive: [/\btops?\b/i, /\bblouse\b/i, /\btunic\b/i],
+    negative: [/\blaptop/i, /\brooftop/i, /\btop\s*(wear|10|100)\b/i, /\bshoes?\b/i, /\bpants?\b/i],
+    aliases: [/\btops?\b/i, /\bblouse/i, /\btunic/i],
+    complementary: 'tops',
+  },
+  skirt: {
+    id: 'skirt', label: 'skirts',
+    positive: [/\bskirts?\b/i],
+    negative: [/\bt[-\s]?shirt/i, /\bshirt\b/i, /\bskirting/i],
+    aliases: [/\bskirts?\b/i],
+    complementary: 'bottoms',
+  },
+  suit: {
+    id: 'suit', label: 'suits',
+    positive: [/\bsuits?\b/i, /\btuxedo/i, /\bthree[-\s]?piece/i],
+    negative: [/\bsuit(case|able|s\s+for)/i, /\bsalwar\s+suit/i, /\btrack\s+suit/i, /\bswimsuit/i],
+    aliases: [/\bsuits?\b/i, /\btuxedo/i],
+  },
+  blazer: {
+    id: 'blazer', label: 'blazers',
+    positive: [/\bblazers?\b/i],
+    aliases: [/\bblazers?\b/i],
+    complementary: 'outerwear',
+  },
+  jacket: {
+    id: 'jacket', label: 'jackets',
+    positive: [/\bjackets?\b/i, /\bcoat\b/i, /\bparka\b/i],
+    aliases: [/\bjackets?\b/i, /\bcoat\b/i],
+    complementary: 'outerwear',
+  },
+  sneakers: {
+    id: 'sneakers', label: 'sneakers',
+    positive: [/\bsneakers?\b/i, /\bcasual\s+shoes?/i, /\brunning\s+shoes?/i, /\btrainers?\b/i],
+    negative: [/\bformal\s+shoes?/i, /\bheels?\b/i, /\bsandals?\b/i, /\bshirt\b/i, /\bjeans?\b/i, /\bpants?\b/i],
+    aliases: [/\bsneakers?\b/i, /\btrainers?\b/i, /\brunning\s+shoes?/i],
+    complementary: 'footwear',
+  },
+  'formal-shoes': {
+    id: 'formal-shoes', label: 'formal shoes',
+    positive: [/\bformal\s+shoes?/i, /\boxfords?\b/i, /\bloafers?\b/i, /\bderby\b/i, /\bbrogue/i],
+    negative: [/\bsneakers?\b/i, /\bheels?\b/i, /\bsandals?\b/i, /\bshirt\b/i, /\bjeans?\b/i],
+    aliases: [/\bformal\s+shoes?/i, /\boxfords?/i, /\bloafers?/i, /\bderby/i, /\bbrogue/i],
+    complementary: 'footwear',
+  },
+  heels: {
+    id: 'heels', label: 'heels',
+    positive: [/\bheels?\b/i, /\bstiletto/i, /\bpump\b/i, /\bwedges?\b/i],
+    negative: [/\bflat\b/i, /\bsneakers?\b/i, /\bsandals?\b/i],
+    aliases: [/\bheels?\b/i, /\bstiletto/i, /\bwedges?\b/i],
+    complementary: 'footwear',
+  },
+  sandals: {
+    id: 'sandals', label: 'sandals',
+    positive: [/\bsandals?\b/i, /\bflip[-\s]?flops?\b/i, /\bslippers?\b/i, /\bfloaters?\b/i],
+    negative: [/\bsneakers?\b/i, /\bheels?\b/i, /\bformal\s+shoes?/i, /\bshirt\b/i, /\bjeans?\b/i],
+    aliases: [/\bsandals?\b/i, /\bflip[-\s]?flops?\b/i, /\bfloaters?\b/i],
+    complementary: 'footwear',
+  },
+  shoes: {
+    id: 'shoes', label: 'shoes',
+    positive: [/\bshoes?\b/i, /\bfootwear\b/i, /\bsneakers?\b/i, /\bloafers?\b/i, /\bboots?\b/i],
+    negative: [/\bshirt\b/i, /\bjeans?\b/i, /\bpants?\b/i, /\bwatch/i, /\bbag\b/i, /\bshoelace/i, /\bshoe\s+care/i, /\bshoe\s+polish/i],
+    aliases: [/\bshoes?\b/i, /\bfootwear\b/i],
+    complementary: 'footwear',
+  },
+};
+
+/** Which product types belong to which complementary category (for outfit reasoning). */
+export const COMPLEMENTARY_TYPES: Record<ComplementaryCategory, ProductTypeId[]> = {
+  tops: ['shirt', 'tshirt', 'kurta', 'top', 'dress'],
+  bottoms: ['jeans', 'trousers', 'chinos', 'shorts', 'skirt', 'track-pants'],
+  footwear: ['sneakers', 'formal-shoes', 'heels', 'sandals', 'shoes'],
+  outerwear: ['blazer', 'jacket'],
+  accessories: [],
+};
+
+/** Ordered so more-specific alias wins first (e.g. "formal shoes" before "shoes"). */
+const PRODUCT_TYPE_PARSE_ORDER: ProductTypeId[] = [
+  'formal-shoes', 'sherwani', 'lehenga', 'saree', 'kurta', 'chinos', 'track-pants',
+  'sneakers', 'heels', 'sandals', 'tshirt', 'trousers', 'jeans', 'shorts',
+  'blazer', 'jacket', 'shirt', 'dress', 'top', 'skirt', 'suit', 'shoes',
+];
+
+export function parseProductTypeFromText(message: string): ProductTypeId | undefined {
+  const lower = message.toLowerCase();
+  for (const id of PRODUCT_TYPE_PARSE_ORDER) {
+    const spec = PRODUCT_TYPE_TAXONOMY[id];
+    if (spec.aliases.some((r) => r.test(lower))) return id;
+  }
+  return undefined;
+}
+
+/**
+ * Strict product-type constraint. Uses product NAME as primary evidence.
+ * Broad category paths (e.g. "Jeans & Shorts >> Shorts") do NOT satisfy
+ * a jeans query — the actual leaf product name must match.
+ */
+export function matchesProductTypeConstraint(product: Product, productType: ProductTypeId): boolean {
+  const spec = PRODUCT_TYPE_TAXONOMY[productType];
+  if (!spec) return true;
+  const name = (product.name || '').toLowerCase();
+  const catPath = (product.category || '');
+  const catLeaf = catPath.split('>>').pop()?.trim().toLowerCase() ?? '';
+
+  // Reject when negative pattern matches the product name (brand-noise / wrong-type protection).
+  if (spec.negative && spec.negative.some((r) => r.test(name))) return false;
+
+  // Positive evidence: prefer the product name; fall back to the category leaf only
+  // (not the full path — the full path enables "Jeans & Shorts" false positives).
+  const nameHit = spec.positive.some((r) => r.test(name));
+  const leafHit = spec.positive.some((r) => r.test(catLeaf))
+    && !(spec.negative && spec.negative.some((r) => r.test(catLeaf)));
+  return nameHit || leafHit;
+}
+
+/**
+ * Detect complementary-outfit intent, e.g. "what pants go with white shirt",
+ * "shoes for a black suit", "what to wear with jeans". Returns the target
+ * complementary category and (best-effort) a reference item description.
+ */
+export function parseComplementaryIntent(message: string): {
+  target?: ComplementaryCategory;
+  reference?: string;
+} {
+  const lower = message.toLowerCase();
+  const goesWith = /(goes?\s+with|go\s+with|pair(s|ed)?\s+with|wear\s+with|match(es|ed)?\s+with|suits?\s+(a\s+|for\s+a\s+)?|to\s+wear\s+with|for\s+(a\s+|my\s+)?(white|black|blue|red|green|navy|grey|gray)?\s*\w+\s+(shirt|suit|kurta|jeans|trousers|dress|saree))/i;
+  const hasComplementary = goesWith.test(lower);
+
+  // Explicit "what X goes with Y" — parse only the text BEFORE "with" so the
+  // reference item (Y) never overrides the target productType (X).
+  const withIdx = lower.search(/\bwith\b/);
+  const targetText = withIdx > 0 ? lower.slice(0, withIdx) : lower;
+  const targetType = parseProductTypeFromText(targetText);
+
+  // Only treat as complementary intent when we actually see a "goes with"-style
+  // phrase. Otherwise "show me jeans" would look like an outfit query.
+  if (!hasComplementary && !/\b(what|which)\s+(pant|pants|shirt|shoe|shoes|top|bottom)/i.test(lower)) {
+    return {};
+  }
+
+  let target: ComplementaryCategory | undefined;
+  if (targetType) {
+    for (const [cat, list] of Object.entries(COMPLEMENTARY_TYPES) as [ComplementaryCategory, ProductTypeId[]][]) {
+      if (list.includes(targetType)) { target = cat; break; }
+    }
+  }
+
+  // Extract a reference item after "with"
+  const withMatch = lower.match(/with\s+(?:a\s+|my\s+|this\s+|these\s+)?([a-z\s]+?)(?:\?|$|\.)/);
+  const reference = withMatch ? withMatch[1].trim().slice(0, 40) : undefined;
+
+  return { target, reference };
+}
 
 const CATEGORY_HINTS: Array<{ keyword: string; category: string; label: string }> = [
   { keyword: 'dress', category: 'Dresses', label: 'dresses' },
@@ -558,6 +840,8 @@ export function mergeIntentIntoContext(
   const categoryGuess = guessCategory(message);
   const color = guessColor(message);
   const cheaperRequested = /cheaper|budget|affordable|cheap|less expensive/i.test(lower);
+  const productType = parseProductTypeFromText(message);
+  const complementary = parseComplementaryIntent(message);
 
   let next: RecommendationContext = {
     ...prior,
@@ -611,6 +895,29 @@ export function mergeIntentIntoContext(
   }
 
   next.cheaperRequested = cheaperRequested || prior.cheaperRequested;
+
+  // Product type: an explicit new type overrides prior context (user changed subject).
+  // "show me shoes" after wedding context should switch productType but keep gender/occasion/budget.
+  // If the new message introduces a NEW occasion but no productType, drop stale productType —
+  // an "outfit for wedding" query should not silently keep "trousers" from a prior turn.
+  if (productType) {
+    next.productType = productType;
+  } else if (occasion && occasion !== prior.occasion) {
+    next.productType = undefined;
+  } else {
+    next.productType = prior.productType;
+  }
+
+  // Complementary intent is a per-turn signal — never carry it forward automatically.
+  // Otherwise every later turn keeps claiming products "pair with your white shirt"
+  // long after the user changed topic.
+  if (complementary.target) {
+    next.complementaryTarget = complementary.target;
+    next.referenceItem = complementary.reference;
+  } else {
+    next.complementaryTarget = undefined;
+    next.referenceItem = undefined;
+  }
 
   return next;
 }
@@ -670,9 +977,21 @@ export function scoreCandidate(
   score += ratingScore;
   if ((product.rating || 0) >= 4.2) reasons.push('Strong customer rating.');
 
+  // Product-type match dominates ranking so wrong-type items never outrank correct ones.
+  if (context.productType) {
+    if (matchesProductTypeConstraint(product, context.productType)) {
+      score += 20;
+      reasons.push(`Exact ${PRODUCT_TYPE_TAXONOMY[context.productType].label} match.`);
+    } else {
+      score -= 25;
+    }
+  }
+
   const rel = keywordRelevanceScore(product, context.keywords);
   score += rel;
-  if (rel > 0) reasons.push('Matches your search terms.');
+  // Only surface the generic "matches search terms" reason when we don't already have
+  // a stronger, more specific reason attached.
+  if (rel > 0 && reasons.length === 0) reasons.push('Matches your search terms.');
 
   const occ = occasionFitScore(product, context.occasion, context.gender);
   score += occ;
@@ -697,7 +1016,10 @@ export function scoreCandidate(
 
   if (reasons.length === 0) reasons.push('Recommended for overall value.');
 
-  return { product, score, reasons: reasons.slice(0, 3) };
+  // Dedupe while preserving order.
+  const seen = new Set<string>();
+  const unique = reasons.filter((r) => (seen.has(r) ? false : (seen.add(r), true)));
+  return { product, score, reasons: unique.slice(0, 3) };
 }
 
 export function scoreCandidates(
@@ -782,6 +1104,9 @@ export function applyHardFilters(
     if (shouldApplyGenderFilter(context) && context.gender && !matchesGenderConstraint(product, context.gender)) {
       return false;
     }
+    if (context.productType && !matchesProductTypeConstraint(product, context.productType)) {
+      return false;
+    }
     const effectiveMax = context.budgetWidenedTo ?? context.budgetMax;
     if (!matchesBudgetConstraint(product, context.budgetMin, effectiveMax)) return false;
     return true;
@@ -799,7 +1124,10 @@ export function buildRecommendationHeading(context: RecommendationContext): stri
     parts.push(context.gender === 'men' ? "Men's" : "Women's");
   }
 
-  if (context.occasion) {
+  if (context.productType) {
+    const label = PRODUCT_TYPE_TAXONOMY[context.productType].label;
+    parts.push(label.charAt(0).toUpperCase() + label.slice(1));
+  } else if (context.occasion) {
     const label = OCCASION_TAXONOMY[context.occasion].label;
     parts.push(label.charAt(0).toUpperCase() + label.slice(1));
   } else if (context.categoryLabel) {
@@ -834,12 +1162,22 @@ export function buildExplanation(
   const scoreMap = new Map((scored || []).map((s) => [s.product.id, s]));
   const topReasons = scoreMap.get(top.id)?.reasons ?? [];
 
-  const parts: string[] = [
-    `I picked ${top.name} (₹${getProductEffectivePrice(top).toLocaleString('en-IN')}, rating ${(top.rating || 0).toFixed(1)}) as the top match.`,
-  ];
+  const genderLabel = shouldApplyGenderFilter(context) && context.gender
+    ? (context.gender === 'men' ? "men's " : "women's ")
+    : '';
+  const typeLabel = context.productType ? PRODUCT_TYPE_TAXONOMY[context.productType].label : 'products';
 
-  if (topReasons.length > 0) {
-    parts.push(topReasons.join(' '));
+  const leadParts: string[] = [`I found ${products.length} ${genderLabel}${typeLabel}`];
+  if (context.complementaryTarget && context.referenceItem) {
+    leadParts.push(`that pair well with your ${context.referenceItem}`);
+  } else if (context.occasion) {
+    leadParts.push(`for ${OCCASION_TAXONOMY[context.occasion].label}`);
+  }
+  const parts: string[] = [`${leadParts.join(' ')}. Top pick: ${top.name} (₹${getProductEffectivePrice(top).toLocaleString('en-IN')}).`];
+
+  const usefulReasons = topReasons.filter((r) => r !== 'Matches your search terms.');
+  if (usefulReasons.length > 0) {
+    parts.push(usefulReasons.join(' '));
   }
 
   if (context.budgetWidened && context.budgetWidenedTo != null && context.budgetMax != null) {
@@ -850,8 +1188,11 @@ export function buildExplanation(
     parts.push(`All picks are within ₹${(context.budgetWidenedTo ?? context.budgetMax).toLocaleString('en-IN')}.`);
   }
 
+  // Only claim color prioritization if returned products actually reflect the color.
   if (context.color) {
-    parts.push(`I prioritized ${context.color} options where available.`);
+    const colorLower = context.color.toLowerCase();
+    const anyMatches = products.some((p) => `${p.name} ${p.description}`.toLowerCase().includes(colorLower));
+    if (anyMatches) parts.push(`I prioritized ${context.color} options where available.`);
   }
 
   return parts.join(' ');
@@ -937,6 +1278,32 @@ async function runCandidateQuery(
 
     return query;
   };
+
+  // If productType is set, retrieve by productType alias terms first — this is the
+  // most reliable way to get a correct-type candidate pool from Supabase.
+  if (context.productType) {
+    const spec = PRODUCT_TYPE_TAXONOMY[context.productType];
+    const merged = new Map<number, unknown>();
+    // Extract plain-word tokens from positive regex sources (drop \b, character classes).
+    const searchTerms = spec.positive
+      .map((r) => r.source.replace(/\\b|\?|\+|\*|\(|\)|\[[^\]]+\]|\?:|\\s|\\-|\||\.|\^|\$/g, ' ').trim())
+      .flatMap((s) => s.split(/\s+/))
+      .filter((t) => t.length >= 3)
+      .slice(0, 4);
+
+    for (const term of searchTerms) {
+      let query = applySharedFilters(supabase.from('products_new'));
+      query = query.ilike('name', `%${term}%`);
+      const { data, error } = await query.order('rating', { ascending: false }).limit(60);
+      if (error) { console.warn('recommendationEngine productType query error:', error.message); continue; }
+      for (const row of data || []) {
+        const id = (row as { product_id?: number }).product_id;
+        if (id != null) merged.set(id, row);
+      }
+    }
+    if (merged.size > 0) return [...merged.values()];
+    // else fall through to occasion/category paths below
+  }
 
   if (context.occasion) {
     const terms = getOccasionQueryTerms(context.occasion, context.gender).slice(0, 3);
@@ -1095,6 +1462,54 @@ export function runEngineSelfTest(): { passed: number; failed: number; errors: s
   assert(buildRecommendationHeading({ ...ctx, genderConfidence: 'explicit' }).includes("Men's"), 'heading includes gender');
   assert(buildRecommendationHeading({ ...ctx, genderConfidence: 'explicit' }).includes('5,000'), 'heading includes budget');
 
-  const totalTests = 17;
+  // Product-type tests — the core AI-accuracy protection.
+  const jeansProduct: Product = { id: 100, name: "Men's Slim Fit Jeans", brand: 'Levis', description: 'denim', price: 1500, rating: 4.3, image: '', category: "Clothing >> Men's Clothing >> Jeans" };
+  const shortsInJeansPath: Product = { id: 101, name: "Men's Cotton Shorts", brand: 'Cool', description: '', price: 800, rating: 4.0, image: '', category: "Clothing >> Men's Clothing >> Jeans & Shorts >> Shorts" };
+  const sunglassesJeansBrand: Product = { id: 102, name: 'Pepe Jeans Wayfarer Sunglasses', brand: 'Pepe Jeans', description: '', price: 1200, rating: 4.1, image: '', category: "Accessories >> Sunglasses" };
+  const formalShoe: Product = { id: 103, name: "Men's Formal Oxford Shoes", brand: 'Bata', description: '', price: 2000, rating: 4.2, image: '', category: "Footwear >> Men >> Formal Shoes" };
+
+  assert(parseProductTypeFromText('show me jeans') === 'jeans', 'parses jeans');
+  assert(parseProductTypeFromText("men's jeans") === 'jeans', 'parses jeans with gender');
+  assert(parseProductTypeFromText('formal shoes for wedding') === 'formal-shoes', 'parses formal shoes before shoes');
+  assert(parseProductTypeFromText('pants for men') === 'trousers', 'pants → trousers');
+  assert(parseProductTypeFromText('show me a t-shirt') === 'tshirt', 't-shirt not shirt');
+  assert(parseProductTypeFromText('a nice dress') === 'dress', 'dress');
+
+  assert(matchesProductTypeConstraint(jeansProduct, 'jeans'), 'real jeans matches jeans');
+  assert(!matchesProductTypeConstraint(shortsInJeansPath, 'jeans'), 'shorts in "Jeans & Shorts" path REJECTED for jeans query');
+  assert(!matchesProductTypeConstraint(sunglassesJeansBrand, 'jeans'), 'Pepe Jeans sunglasses REJECTED for jeans query (brand-only)');
+  assert(matchesProductTypeConstraint(formalShoe, 'formal-shoes'), 'oxford matches formal-shoes');
+  assert(!matchesProductTypeConstraint(formalShoe, 'sneakers'), 'formal shoe not sneakers');
+
+  const jeansCtx = mergeIntentIntoContext('show me jeans', DEFAULT_CONTEXT);
+  assert(jeansCtx.productType === 'jeans', 'jeans intent merged');
+  const hardJeans = applyHardFilters([jeansProduct, shortsInJeansPath, sunglassesJeansBrand], jeansCtx);
+  assert(hardJeans.length === 1 && hardJeans[0].id === jeansProduct.id, 'hard filter for jeans keeps only real jeans');
+
+  // Complementary intent
+  const compIntent = parseComplementaryIntent('what pants go with a white shirt');
+  assert(compIntent.target === 'bottoms', 'complementary: pants → bottoms');
+  const compCtx = mergeIntentIntoContext('what pants go with a white shirt', DEFAULT_CONTEXT);
+  assert(compCtx.productType === 'trousers' && compCtx.complementaryTarget === 'bottoms', 'complementary context set');
+
+  const compShoes = parseComplementaryIntent('what shoes go with a black suit');
+  assert(compShoes.target === 'footwear', 'complementary: shoes → footwear');
+
+  // Context preservation across topic switch
+  const weddingCtx = mergeIntentIntoContext("men's wedding outfit under 5000", DEFAULT_CONTEXT);
+  const nowShoes = mergeIntentIntoContext('now show me shoes', weddingCtx);
+  assert(nowShoes.gender === 'men' && nowShoes.occasion === 'wedding' && nowShoes.budgetMax === 5000 && nowShoes.productType === 'shoes', 'productType switch preserves gender/occasion/budget');
+
+  // Scoring: correct type outranks wrong type even with high rating
+  const scoredJeans = scoreCandidates([sunglassesJeansBrand, jeansProduct], jeansCtx);
+  assert(scoredJeans[0].product.id === jeansProduct.id, 'correct productType outranks brand-only match');
+
+  // Reason dedup: no duplicate "Matches your search terms."
+  const jeansCtxWithKw: RecommendationContext = { ...jeansCtx, keywords: ['jeans', 'denim'] };
+  const scoredOne = scoreCandidate(jeansProduct, jeansCtxWithKw);
+  const rsCount = scoredOne.reasons.filter((r) => r === 'Matches your search terms.').length;
+  assert(rsCount <= 1, 'no duplicate search-terms reason');
+
+  const totalTests = 32;
   return { passed: errors.length === 0 ? totalTests : totalTests - errors.length, failed: errors.length, errors };
 }

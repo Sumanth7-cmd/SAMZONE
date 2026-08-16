@@ -1,8 +1,9 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, X, Palette, User, CheckCircle, Sparkles } from 'lucide-react';
 import { productApi } from '../services/api';
 import type { Product } from '../services/api';
+import { matchesGenderConstraint, type Gender } from '../services/recommendationEngine';
 import { getProductImage, PLACEHOLDER } from '../utils/productImage';
 import { addToCart } from '../utils/cart';
 import { trackProductInteraction } from '../services/aiShoppingFeatures';
@@ -107,6 +108,14 @@ const SkinToneAnalysis: React.FC = () => {
     const [colorProducts, setColorProducts] = useState<Product[]>([]);
     const [colorProductsLoading, setColorProductsLoading] = useState(false);
     const [activeColorTab, setActiveColorTab] = useState<string>('');
+    const [shoppingFor, setShoppingFor] = useState<'men' | 'women' | 'both' | null>(null);
+
+    // Final gender safety net — applied right before render regardless of upstream state.
+    const filteredColorProducts = useMemo(() => {
+        if (!shoppingFor || shoppingFor === 'both') return colorProducts;
+        const g: Gender = shoppingFor;
+        return colorProducts.filter((p) => matchesGenderConstraint(p, g));
+    }, [colorProducts, shoppingFor]);
 
     const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -454,10 +463,34 @@ const SkinToneAnalysis: React.FC = () => {
                                     </button>
                                 </div>
                                 
+                                <div className="mb-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                                    <p className="text-sm font-semibold text-gray-900 mb-2">Who are you shopping for?</p>
+                                    <div className="flex gap-2">
+                                        {(['men', 'women', 'both'] as const).map((opt) => (
+                                            <button
+                                                key={opt}
+                                                type="button"
+                                                onClick={() => setShoppingFor(opt)}
+                                                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                                                    shoppingFor === opt
+                                                        ? 'bg-purple-600 text-white border-purple-600'
+                                                        : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300'
+                                                }`}
+                                            >
+                                                {opt === 'men' ? 'Men' : opt === 'women' ? 'Women' : 'Both'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {!shoppingFor && (
+                                        <p className="mt-2 text-xs text-purple-700">Please select before analyzing so we can show only relevant products.</p>
+                                    )}
+                                </div>
+
                                 <div className="flex gap-2">
                                     <button
                                         onClick={analyzeSkinTone}
-                                        disabled={isAnalyzing}
+                                        disabled={isAnalyzing || !shoppingFor}
+                                        title={!shoppingFor ? 'Select who you are shopping for first' : undefined}
                                         className="flex-1 bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                                     >
                                         {isAnalyzing ? (
@@ -663,9 +696,9 @@ const SkinToneAnalysis: React.FC = () => {
                                     )}
 
                                     {/* Product cards */}
-                                    {!colorProductsLoading && colorProducts.length > 0 && (
+                                    {!colorProductsLoading && filteredColorProducts.length > 0 && (
                                         <div className="grid grid-cols-2 gap-3">
-                                            {colorProducts.map((product) => (
+                                            {filteredColorProducts.map((product) => (
                                                 <div
                                                     key={product.id}
                                                     className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow flex flex-col"
@@ -715,7 +748,7 @@ const SkinToneAnalysis: React.FC = () => {
                                     )}
 
                                     {/* Empty state */}
-                                    {!colorProductsLoading && colorProducts.length === 0 && (
+                                    {!colorProductsLoading && filteredColorProducts.length === 0 && (
                                         <div className="text-center py-6 text-gray-500 text-sm">
                                             <p className="text-3xl mb-2">🔍</p>
                                             <p>No products found for {activeColorTab || 'this color'}.</p>

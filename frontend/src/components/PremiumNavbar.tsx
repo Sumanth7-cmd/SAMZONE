@@ -417,10 +417,10 @@ const PremiumNavbar: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Wishlist Link */}
+                        {/* Wishlist Link — hidden below md to prevent 375px overflow (accessible via Account dropdown) */}
                         <Link
                             to="/wishlist"
-                            className="relative inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-purple-700 transition"
+                            className="relative hidden md:inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-purple-700 transition"
                         >
                             <Heart className="w-5 h-5" />
                             <span className="hidden md:block">Wishlist</span>
@@ -431,10 +431,10 @@ const PremiumNavbar: React.FC = () => {
                             )}
                         </Link>
 
-                        {/* Cart Link */}
+                        {/* Cart Link — hidden below md to prevent 375px overflow (accessible via Account dropdown) */}
                         <Link
                             to="/cart"
-                            className="relative inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-purple-700 transition"
+                            className="relative hidden md:inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-purple-700 transition"
                         >
                             <ShoppingCart className="w-5 h-5" />
                             <span className="hidden md:block">Cart</span>
